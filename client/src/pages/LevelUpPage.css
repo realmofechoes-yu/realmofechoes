@@ -1,0 +1,19 @@
+.levelup-page { max-width: 700px; margin: 0 auto; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-md); margin-top: var(--space-xl); }
+.stat-alloc-card { text-align: center; }
+.stat-header { margin-bottom: var(--space-md); }
+.stat-name { font-family: var(--font-heading); font-size: 1.2rem; color: var(--gold); }
+.stat-desc { font-size: 0.75rem; color: var(--text-dim); }
+.stat-values { display: flex; align-items: center; justify-content: center; gap: var(--space-sm); margin-bottom: var(--space-md); font-family: var(--font-heading); }
+.stat-current { font-size: 1.5rem; color: var(--text-primary); }
+.stat-bonus { color: var(--text-success); font-size: 1rem; }
+.stat-arrow { color: var(--text-dim); }
+.stat-new { font-size: 1.5rem; color: var(--gold-bright); }
+.stat-controls { display: flex; align-items: center; justify-content: center; gap: var(--space-md); }
+.stat-alloc-count { font-family: var(--font-heading); font-size: 1.25rem; min-width: 30px; text-align: center; }
+
+.stat-preview h4 { font-family: var(--font-heading); color: var(--text-secondary); margin-bottom: var(--space-md); }
+.preview-grid { display: flex; flex-direction: column; gap: var(--space-sm); font-size: 0.9rem; }
+.preview-grid div { display: flex; justify-content: space-between; }
+
+.levelup-actions { display: flex; gap: var(--space-md); justify-content: center; }

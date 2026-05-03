@@ -1,0 +1,63 @@
+.dungeon-page { max-width: 900px; margin: 0 auto; }
+.dungeon-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl); flex-wrap: wrap; gap: var(--space-md); }
+.dungeon-floor-badge {
+  font-family: var(--font-heading); font-size: 1rem; color: var(--gold);
+  background: rgba(212,163,71,0.1); padding: 6px 16px; border-radius: 20px;
+  border: 1px solid rgba(212,163,71,0.3);
+}
+
+.dungeon-status { display: flex; flex-wrap: wrap; gap: var(--space-lg); align-items: center; margin-bottom: var(--space-xl); }
+.status-bars { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--space-sm); }
+.status-bar-wrap { display: flex; align-items: center; gap: var(--space-sm); }
+.status-label { font-size: 0.8rem; min-width: 40px; }
+.status-info { display: flex; align-items: center; gap: var(--space-md); font-size: 0.85rem; color: var(--text-secondary); flex-wrap: wrap; }
+.status-actions { display: flex; gap: var(--space-sm); }
+
+.room-map { margin: var(--space-xl) 0; }
+.room-path { display: flex; align-items: center; overflow-x: auto; padding: var(--space-lg) 0; gap: 0; }
+.room-node-wrap { display: flex; align-items: center; }
+.room-connector {
+  width: 40px; height: 3px; background: var(--border-dim);
+  transition: background var(--transition-base);
+}
+.room-connector.visited { background: var(--gold-dim); }
+.room-node {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: var(--space-md) var(--space-lg); min-width: 100px;
+  background: var(--bg-card); border: 2px solid var(--border-dim);
+  border-radius: var(--radius-lg); cursor: default;
+  transition: all var(--transition-base); position: relative;
+}
+.room-node.visited { opacity: 0.5; border-color: var(--gold-dim); background: rgba(212,163,71,0.05); }
+.room-node.current { border-color: var(--gold); box-shadow: var(--shadow-glow-gold); animation: glow 2s ease-in-out infinite; }
+.room-node.next {
+  cursor: pointer; border-color: var(--border-bright);
+  animation: pulse 2s ease-in-out infinite;
+}
+.room-node.next:hover { border-color: var(--gold); transform: translateY(-4px); box-shadow: var(--shadow-glow-gold); }
+.room-node.locked { opacity: 0.3; }
+.room-icon { font-size: 1.8rem; }
+.room-label { font-size: 0.75rem; font-family: var(--font-heading); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.room-enter-hint { font-size: 0.65rem; color: var(--gold); position: absolute; bottom: -20px; white-space: nowrap; }
+
+.floor-complete { margin-top: var(--space-xl); padding: var(--space-xl); }
+.floor-complete h3 { margin-bottom: var(--space-sm); }
+.floor-complete p { margin-bottom: var(--space-lg); }
+
+.event-icon { font-size: 3rem; text-align: center; margin-bottom: var(--space-md); }
+.event-description { color: var(--text-secondary); text-align: center; margin-bottom: var(--space-lg); font-style: italic; }
+.event-message {
+  padding: var(--space-sm) var(--space-md); border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm); font-size: 0.9rem;
+}
+.event-treasure { background: rgba(212,163,71,0.1); color: var(--text-gold); border-left: 3px solid var(--gold); }
+.event-shrine { background: rgba(74,158,110,0.1); color: var(--text-success); border-left: 3px solid var(--nature); }
+.event-trap { background: rgba(196,75,47,0.1); color: var(--text-danger); border-left: 3px solid var(--ember); }
+.event-rest { background: rgba(91,155,213,0.1); color: var(--text-info); border-left: 3px solid var(--frost); }
+.event-loot { margin-top: var(--space-md); }
+.loot-item { padding: var(--space-sm); display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+
+@media (max-width: 640px) {
+  .room-path { flex-direction: column; }
+  .room-connector { width: 3px; height: 30px; }
+}

@@ -1,0 +1,46 @@
+.inventory-page { max-width: 900px; margin: 0 auto; }
+.inv-controls { display: flex; gap: var(--space-md); margin: var(--space-lg) 0; flex-wrap: wrap; }
+.filter-group { flex: 1; min-width: 150px; }
+.inv-select { padding: 0.5rem 0.75rem; }
+
+.inv-section { margin-bottom: var(--space-xl); }
+.inv-section-title { font-family: var(--font-heading); font-size: 1.1rem; color: var(--text-gold); margin-bottom: var(--space-md); }
+
+.inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-md); }
+.inv-card {
+  padding: var(--space-md); background: var(--bg-card);
+  border: 1px solid var(--border-dim); border-radius: var(--radius-md);
+  cursor: pointer; transition: all var(--transition-base); position: relative;
+}
+.inv-card:hover { transform: translateY(-2px); border-color: var(--border-glow); box-shadow: var(--shadow-md); }
+.inv-card.equipped { border-width: 2px; }
+.rarity-common { border-color: rgba(158,154,176,0.3); }
+.rarity-uncommon { border-color: rgba(74,158,110,0.4); }
+.rarity-rare { border-color: rgba(91,155,213,0.4); }
+.rarity-epic { border-color: rgba(123,94,167,0.5); }
+.rarity-legendary { border-color: rgba(212,163,71,0.5); box-shadow: 0 0 15px rgba(212,163,71,0.15); }
+
+.inv-card-header { display: flex; justify-content: space-between; align-items: start; gap: var(--space-sm); margin-bottom: 4px; }
+.inv-item-name { font-weight: 600; font-size: 0.9rem; }
+.inv-item-type { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: var(--space-sm); }
+.inv-item-desc { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: var(--space-sm); }
+.inv-item-stats { display: flex; flex-wrap: wrap; gap: 4px; }
+.inv-stat {
+  font-size: 0.7rem; padding: 2px 6px; background: var(--bg-dark);
+  border-radius: var(--radius-sm); color: var(--text-success);
+}
+.equipped-badge {
+  position: absolute; top: 8px; right: 8px;
+  font-size: 0.6rem; padding: 2px 6px; background: rgba(212,163,71,0.2);
+  color: var(--gold); border-radius: 10px; text-transform: uppercase;
+}
+
+.item-detail-stats { display: flex; gap: var(--space-md); justify-content: center; }
+.detail-stat { text-align: center; padding: var(--space-sm) var(--space-md); background: var(--bg-medium); border-radius: var(--radius-sm); }
+.detail-stat span:first-child { display: block; font-size: 0.7rem; color: var(--text-dim); }
+.detail-stat span:last-child { font-size: 1.1rem; font-weight: 700; }
+.item-actions { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+@media (max-width: 640px) {
+  .inv-grid { grid-template-columns: 1fr; }
+}

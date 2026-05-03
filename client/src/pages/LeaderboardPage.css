@@ -1,0 +1,18 @@
+.leaderboard-page { max-width: 900px; margin: 0 auto; }
+.lb-table-wrap { overflow-x: auto; margin-top: var(--space-xl); }
+.lb-table { width: 100%; border-collapse: collapse; }
+.lb-table th {
+  font-family: var(--font-heading); font-size: 0.8rem; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-dim); padding: var(--space-md);
+  text-align: left; border-bottom: 1px solid var(--border-dim);
+}
+.lb-table td { padding: var(--space-md); border-bottom: 1px solid var(--border-dim); font-size: 0.9rem; }
+.lb-table tbody tr { transition: background var(--transition-fast); }
+.lb-table tbody tr:hover { background: var(--bg-hover); }
+.lb-current-user { background: rgba(212,163,71,0.08) !important; }
+.lb-current-user td { color: var(--text-gold); }
+.lb-rank { font-size: 1.1rem; font-weight: 700; text-align: center; }
+.lb-name { font-weight: 600; }
+.lb-you { font-size: 0.7rem; color: var(--gold); margin-left: 6px; }
+.lb-floor { font-family: var(--font-heading); color: var(--text-gold); font-weight: 600; }
+.lb-gold { color: var(--gold); }
