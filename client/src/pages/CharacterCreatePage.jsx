@@ -57,7 +57,7 @@ export default function CharacterCreatePage() {
               <div className={`absolute inset-0 bg-gradient-to-b ${bgGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${isSelected ? 'opacity-100' : ''}`}></div>
               
               <div className="relative z-10 flex flex-col items-center">
-                <div className="text-5xl mb-4 drop-shadow-lg">{info.icon}</div>
+                <div className="text-5xl mb-4 drop-shadow-lg flex items-center justify-center h-16">{info.sprite ? <img src={info.sprite} alt={info.name} className="w-16 h-16 object-contain drop-shadow-[0_0_5px_rgba(255,255,255,0.1)]" /> : info.icon}</div>
                 <h3 className="font-title text-2xl font-bold mb-2 tracking-wide" style={{ color: info.colorBright }}>{info.name}</h3>
                 <p className="text-sm text-gray-400 text-center mb-6 leading-relaxed font-serif italic min-h-[60px]">{info.description}</p>
 

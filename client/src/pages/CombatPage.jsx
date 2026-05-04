@@ -289,7 +289,7 @@ export default function CombatPage() {
 
               return (
                 <div key={p.userId} className={`combatant player-side ${shake ? 'animate-shake' : ''} ${isTurn ? 'active-turn' : ''} ${isDead ? 'dead' : ''}`}>
-                  <div className="combatant-icon">{isDead ? '💀' : ci?.icon}</div>
+                  <div className="combatant-icon">{isDead ? '💀' : (ci?.sprite ? <img src={ci.sprite} alt={p.username} className="combatant-sprite" /> : ci?.icon)}</div>
                   <h3 className="combatant-name">{p.username}</h3>
                   <div className="combatant-bars">
                     <div className="stat-bar stat-bar-hp"><div className="stat-bar-fill" style={{ width: `${hpPct}%` }}></div></div>
@@ -301,7 +301,7 @@ export default function CombatPage() {
             })
           ) : (
             <div className={`combatant player-side ${playerShakes['me'] ? 'animate-shake' : ''}`}>
-              <div className="combatant-icon">{CLASS_INFO[myPlayerState.class]?.icon}</div>
+              <div className="combatant-icon">{CLASS_INFO[myPlayerState.class]?.sprite ? <img src={CLASS_INFO[myPlayerState.class].sprite} alt={myPlayerState.name} className="combatant-sprite" /> : CLASS_INFO[myPlayerState.class]?.icon}</div>
               <h3 className="combatant-name">{myPlayerState.name}</h3>
               <span className="combatant-level">Lv.{myPlayerState.level} {CLASS_INFO[myPlayerState.class]?.name}</span>
               <div className="combatant-bars">
@@ -325,7 +325,7 @@ export default function CombatPage() {
 
         {/* Enemy Side */}
         <div className={`combatant enemy-side ${enemyShake ? 'animate-shake' : ''}`}>
-          <div className="combatant-icon enemy-icon">{enemy.isBoss ? '👹' : '💀'}</div>
+          <div className="combatant-icon enemy-icon">{enemy.sprite ? <img src={enemy.sprite} alt={enemy.name} className="combatant-sprite" /> : (enemy.isBoss ? '👹' : '💀')}</div>
           <h3 className="combatant-name">{enemy.name}</h3>
           <p className="enemy-flavor">{enemy.flavorText}</p>
           <div className="combatant-bars">

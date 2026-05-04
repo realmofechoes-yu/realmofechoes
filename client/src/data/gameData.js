@@ -2,6 +2,7 @@ export const CLASS_INFO = {
   warrior: {
     name: 'Warrior',
     icon: '⚔️',
+    sprite: '/sprites/warrior.png',
     color: 'var(--ember)',
     colorBright: 'var(--ember-bright)',
     description: 'A stalwart defender with unmatched endurance. Masters of melee combat who shrug off blows that would fell lesser fighters.',
@@ -15,6 +16,7 @@ export const CLASS_INFO = {
   mage: {
     name: 'Mage',
     icon: '🔮',
+    sprite: '/sprites/mage.png',
     color: 'var(--arcane)',
     colorBright: 'var(--arcane-bright)',
     description: 'A wielder of arcane forces, bending the elements to their will. Devastating at range but fragile up close.',
@@ -28,6 +30,7 @@ export const CLASS_INFO = {
   ranger: {
     name: 'Ranger',
     icon: '🏹',
+    sprite: '/sprites/ranger.png',
     color: 'var(--nature)',
     colorBright: 'var(--nature-bright)',
     description: 'A swift hunter who strikes from the shadows. High critical chance and evasion make them deadly unpredictable.',
