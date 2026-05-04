@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSocketContext } from '../context/SocketContext';
 import './AuthPages.css';
 
 export default function RegisterPage() {
@@ -11,6 +12,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
+  const { reconnect } = useSocketContext();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -20,6 +22,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(username, email, password);
+      reconnect();
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);

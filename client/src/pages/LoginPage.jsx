@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSocketContext } from '../context/SocketContext';
 import './AuthPages.css';
 
 export default function LoginPage() {
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { reconnect } = useSocketContext();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -17,6 +19,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
+      reconnect();
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
