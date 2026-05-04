@@ -14,7 +14,6 @@ import RunSummaryPage from './pages/RunSummaryPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import LobbyPage from './pages/LobbyPage';
 import AppLayout from './components/Layout/AppLayout';
-import './App.css';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
