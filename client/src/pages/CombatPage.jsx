@@ -345,11 +345,11 @@ export default function CombatPage() {
           </button>
           
           {/* Skills */}
-          {skills && Object.entries(skills).filter(([k]) => k.startsWith('skill')).map(([key, skill]) => (
-            <button key={key} className="btn btn-arcane btn-lg action-btn" onClick={() => processAction('skill', key)}
-              disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive || myPlayerState?.sp < skill.spCost} id={`btn-${key}`}
+          {(CLASS_INFO[myPlayerState?.class]?.skills || []).map((skill) => (
+            <button key={skill.key} className="btn btn-arcane btn-lg action-btn" onClick={() => processAction('skill', skill.key)}
+              disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive || myPlayerState?.sp < skill.spCost} id={`btn-${skill.key}`}
               title={`${skill.description} (${skill.spCost} SP)`}>
-              {key === 'skill1' ? (CLASS_INFO[myPlayerState?.class]?.skills[0]?.icon || '✨') : (CLASS_INFO[myPlayerState?.class]?.skills[1]?.icon || '🌟')} {skill.name}
+              {skill.icon || '✨'} {skill.name}
               <span className="skill-cost">{skill.spCost} SP</span>
             </button>
           ))}

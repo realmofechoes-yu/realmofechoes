@@ -57,7 +57,7 @@ function registerGameHandlers(io, socket) {
           }
           // Simple: give items to random players
           for (let i = 0; i < loot.items.length; i++) {
-            const recipient = lobby.players[i % playerCount];
+            const recipient = lobby.players[Math.floor(Math.random() * playerCount)];
             if (!recipient.characterId) continue;
             const item = loot.items[i];
             await run('INSERT INTO inventory (character_id,item_id,name,type,rarity,stats,description,is_equipped,quantity) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',

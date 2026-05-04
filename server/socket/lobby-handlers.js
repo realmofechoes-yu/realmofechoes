@@ -237,7 +237,9 @@ function registerLobbyHandlers(io, socket) {
   // Handle disconnect
   socket.on('disconnect', async () => {
     try {
-      await handleLobbyLeave(io, socket);
+      // Intentionally not calling handleLobbyLeave here so players can refresh
+      // and reconnect without losing their lobby session.
+      console.log(`Socket disconnected: ${socket.id}`);
     } catch (err) {
       console.error('Disconnect cleanup error:', err);
     }

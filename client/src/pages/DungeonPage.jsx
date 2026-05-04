@@ -331,6 +331,14 @@ export default function DungeonPage() {
             <PartyPanel players={formattedParty} myUserId={user.id} />
             <div className="status-actions mt-md panel" style={{display: 'flex', flexDirection: 'column'}}>
               <button className="btn btn-ghost btn-sm btn-full" onClick={() => navigate(`/inventory/${charId}`)}>🎒 Inventory</button>
+              <button className="btn btn-danger btn-sm btn-full mt-sm" onClick={() => {
+                if (window.confirm('Are you sure you want to abandon the co-op session?')) {
+                  emitNoAck('lobby:leave');
+                  setCoopSessionId(null);
+                  setCoopCombatState(null);
+                  navigate('/dashboard');
+                }
+              }}>🚪 Abandon Co-op</button>
             </div>
           </div>
         )}

@@ -363,7 +363,7 @@ async function handleCoopVictory(io, combatState, turnLog) {
 
   const loot = generateCombatLoot(combatState.players[0]?.state.current_floor || 1, enemy.id);
   for (let i = 0; i < loot.length; i++) {
-    const recipient = combatState.players[i % combatState.players.length];
+    const recipient = combatState.players[Math.floor(Math.random() * combatState.players.length)];
     await run('INSERT INTO inventory (character_id,item_id,name,type,rarity,stats,description,is_equipped,quantity) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
       [recipient.state.id, loot[i].item_id, loot[i].name, loot[i].type, loot[i].rarity, loot[i].stats, loot[i].description, false, loot[i].quantity]);
     turnLog.push({ type: 'loot', item: loot[i], recipient: recipient.username, message: `${recipient.username} found: ${loot[i].name} (${loot[i].rarity})` });
