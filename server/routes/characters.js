@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb } = require('../db/database');
+const { getOne, getAll, run } = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 const { getStartingGear } = require('../game/loot-generator');
 const { CLASS_SKILLS } = require('../game/combat-engine');
@@ -13,27 +13,29 @@ const CLASS_DEFAULTS = {
 };
 
 // POST /api/characters - Create new character
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const { name, characterClass } = req.body;
     if (!name || !characterClass) return res.status(400).json({ error: 'Name and class are required.' });
     if (!CLASS_DEFAULTS[characterClass]) return res.status(400).json({ error: 'Invalid class. Choose warrior, mage, or ranger.' });
 
-    const db = getDb();
     const defaults = CLASS_DEFAULTS[characterClass];
-    const result = db.prepare(`INSERT INTO characters (user_id, name, class, hp, max_hp, sp, max_sp, str, intel, dex, vit, current_room) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, -1)`).run(
-      req.user.id, name, characterClass, defaults.hp, defaults.max_hp, defaults.sp, defaults.max_sp, defaults.str, defaults.intel, defaults.dex, defaults.vit
+    const result = await getOne(
+      `INSERT INTO characters (user_id, name, class, hp, max_hp, sp, max_sp, str, intel, dex, vit, current_room) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, -1) RETURNING id`,
+      [req.user.id, name, characterClass, defaults.hp, defaults.max_hp, defaults.sp, defaults.max_sp, defaults.str, defaults.intel, defaults.dex, defaults.vit]
     );
 
-    const charId = result.lastInsertRowid;
+    const charId = result.id;
     const startingGear = getStartingGear(characterClass);
-    const insertItem = db.prepare('INSERT INTO inventory (character_id, item_id, name, type, rarity, stats, description, is_equipped, quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const item of startingGear) {
-      insertItem.run(charId, item.item_id, item.name, item.type, item.rarity, item.stats, item.description, item.is_equipped, item.quantity);
+      await run(
+        'INSERT INTO inventory (character_id, item_id, name, type, rarity, stats, description, is_equipped, quantity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        [charId, item.item_id, item.name, item.type, item.rarity, item.stats, item.description, item.is_equipped, item.quantity]
+      );
     }
 
-    const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(charId);
-    const inventory = db.prepare('SELECT * FROM inventory WHERE character_id = ?').all(charId);
+    const character = await getOne('SELECT * FROM characters WHERE id = $1', [charId]);
+    const inventory = await getAll('SELECT * FROM inventory WHERE character_id = $1', [charId]);
     const skills = CLASS_SKILLS[characterClass];
 
     res.status(201).json({ character, inventory, skills });
@@ -44,10 +46,9 @@ router.post('/', authMiddleware, (req, res) => {
 });
 
 // GET /api/characters - List all characters for user
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const db = getDb();
-    const characters = db.prepare('SELECT * FROM characters WHERE user_id = ? ORDER BY updated_at DESC').all(req.user.id);
+    const characters = await getAll('SELECT * FROM characters WHERE user_id = $1 ORDER BY updated_at DESC', [req.user.id]);
     res.json(characters);
   } catch (err) {
     console.error('List characters error:', err);
@@ -56,14 +57,13 @@ router.get('/', authMiddleware, (req, res) => {
 });
 
 // GET /api/characters/:id - Get single character with inventory
-router.get('/:id', authMiddleware, (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const db = getDb();
-    const character = db.prepare('SELECT * FROM characters WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+    const character = await getOne('SELECT * FROM characters WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     if (!character) return res.status(404).json({ error: 'Character not found.' });
 
-    const inventory = db.prepare('SELECT * FROM inventory WHERE character_id = ?').all(character.id);
-    const combatLogs = db.prepare('SELECT * FROM combat_logs WHERE character_id = ? ORDER BY created_at DESC LIMIT 20').all(character.id);
+    const inventory = await getAll('SELECT * FROM inventory WHERE character_id = $1', [character.id]);
+    const combatLogs = await getAll('SELECT * FROM combat_logs WHERE character_id = $1 ORDER BY created_at DESC LIMIT 20', [character.id]);
     const skills = CLASS_SKILLS[character.class];
 
     res.json({ character, inventory, combatLogs, skills });
@@ -74,10 +74,9 @@ router.get('/:id', authMiddleware, (req, res) => {
 });
 
 // PUT /api/characters/:id - Update character (stat allocation)
-router.put('/:id', authMiddleware, (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const db = getDb();
-    const character = db.prepare('SELECT * FROM characters WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+    const character = await getOne('SELECT * FROM characters WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     if (!character) return res.status(404).json({ error: 'Character not found.' });
 
     const { str, intel, dex, vit } = req.body;
@@ -91,10 +90,12 @@ router.put('/:id', authMiddleware, (req, res) => {
     const newMaxHp = character.max_hp + (vit || 0) * 5;
     const newMaxSp = character.max_sp + (intel || 0) * 3;
 
-    db.prepare(`UPDATE characters SET str = ?, intel = ?, dex = ?, vit = ?, max_hp = ?, max_sp = ?, hp = MIN(hp, ?), sp = MIN(sp, ?), stat_points = stat_points - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .run(newStr, newIntel, newDex, newVit, newMaxHp, newMaxSp, newMaxHp, newMaxSp, totalSpent, character.id);
+    await run(
+      `UPDATE characters SET str = $1, intel = $2, dex = $3, vit = $4, max_hp = $5, max_sp = $6, hp = LEAST(hp, $5), sp = LEAST(sp, $6), stat_points = stat_points - $7, updated_at = NOW() WHERE id = $8`,
+      [newStr, newIntel, newDex, newVit, newMaxHp, newMaxSp, totalSpent, character.id]
+    );
 
-    const updated = db.prepare('SELECT * FROM characters WHERE id = ?').get(character.id);
+    const updated = await getOne('SELECT * FROM characters WHERE id = $1', [character.id]);
     res.json(updated);
   } catch (err) {
     console.error('Update character error:', err);
@@ -103,15 +104,14 @@ router.put('/:id', authMiddleware, (req, res) => {
 });
 
 // DELETE /api/characters/:id - Delete character
-router.delete('/:id', authMiddleware, (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const db = getDb();
-    const character = db.prepare('SELECT * FROM characters WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+    const character = await getOne('SELECT * FROM characters WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     if (!character) return res.status(404).json({ error: 'Character not found.' });
 
-    db.prepare('DELETE FROM inventory WHERE character_id = ?').run(character.id);
-    db.prepare('DELETE FROM combat_logs WHERE character_id = ?').run(character.id);
-    db.prepare('DELETE FROM characters WHERE id = ?').run(character.id);
+    await run('DELETE FROM combat_logs WHERE character_id = $1', [character.id]);
+    await run('DELETE FROM inventory WHERE character_id = $1', [character.id]);
+    await run('DELETE FROM characters WHERE id = $1', [character.id]);
 
     res.json({ message: 'Character deleted successfully.' });
   } catch (err) {

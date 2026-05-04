@@ -1,0 +1,121 @@
+.party-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.party-title {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-xs);
+  color: var(--text-dim);
+}
+
+.party-member {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--border);
+  transition: all 0.3s;
+  position: relative;
+}
+
+.party-member.active-turn {
+  border-left-color: var(--gold);
+  background: rgba(212, 163, 71, 0.08);
+  box-shadow: 0 0 12px rgba(212, 163, 71, 0.15);
+}
+
+.party-member.is-me {
+  border-left-color: var(--arcane);
+}
+
+.party-member.is-me.active-turn {
+  border-left-color: var(--gold);
+}
+
+.party-member.dead {
+  opacity: 0.4;
+  border-left-color: var(--danger);
+}
+
+.pm-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: 4px;
+}
+
+.pm-icon { font-size: 1.1rem; }
+.pm-name { font-weight: 600; font-size: 0.85rem; flex: 1; }
+.pm-level { font-size: 0.75rem; color: var(--text-dim); }
+
+.pm-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pm-bar {
+  height: 12px;
+  background: var(--surface-3);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.pm-bar-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+  border-radius: 6px;
+}
+
+.pm-hp .pm-bar-fill { background: linear-gradient(90deg, #e74c3c, #ff6b6b); }
+.pm-sp .pm-bar-fill { background: linear-gradient(90deg, #3498db, #74b9ff); }
+
+.pm-bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+.pm-effects {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.pm-effect {
+  font-size: 0.65rem;
+  background: rgba(231, 76, 60, 0.2);
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: #ff6b6b;
+}
+
+.pm-turn-indicator {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 0.7rem;
+  color: var(--gold);
+  animation: pulse 1.5s infinite;
+}
+
+.pm-status-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 0.9rem;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

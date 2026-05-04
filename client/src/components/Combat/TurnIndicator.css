@@ -1,0 +1,67 @@
+.turn-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  transition: all 0.3s;
+}
+
+.turn-indicator.my-turn {
+  border-color: var(--gold);
+  background: rgba(212, 163, 71, 0.1);
+  animation: turn-glow 2s infinite;
+}
+
+.turn-indicator.urgent {
+  border-color: var(--danger);
+  animation: turn-urgent 0.5s infinite;
+}
+
+@keyframes turn-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(212, 163, 71, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(212, 163, 71, 0.4); }
+}
+
+@keyframes turn-urgent {
+  0%, 100% { box-shadow: 0 0 8px rgba(231, 76, 60, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(231, 76, 60, 0.6); }
+}
+
+.turn-label { flex: 0 0 auto; }
+.turn-text-mine { font-weight: 700; color: var(--gold); font-size: 1rem; }
+.turn-text-other { color: var(--text-dim); font-size: 0.9rem; }
+
+.turn-timer-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.turn-timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--ember));
+  transition: width 1s linear;
+  border-radius: 4px;
+}
+
+.urgent .turn-timer-fill {
+  background: linear-gradient(90deg, #e74c3c, #ff6b6b);
+}
+
+.turn-timer-text {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  min-width: 30px;
+  text-align: right;
+  color: var(--text-dim);
+}
+
+.urgent .turn-timer-text {
+  color: var(--danger);
+  font-weight: 700;
+}

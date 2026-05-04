@@ -1,17 +1,16 @@
 const express = require('express');
-const { getDb } = require('../db/database');
+const { getOne, getAll, run } = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
 // GET /api/inventory/:charId - Get full inventory
-router.get('/:charId', authMiddleware, (req, res) => {
+router.get('/:charId', authMiddleware, async (req, res) => {
   try {
-    const db = getDb();
-    const char = db.prepare('SELECT * FROM characters WHERE id = ? AND user_id = ?').get(req.params.charId, req.user.id);
+    const char = await getOne('SELECT * FROM characters WHERE id = $1 AND user_id = $2', [req.params.charId, req.user.id]);
     if (!char) return res.status(404).json({ error: 'Character not found.' });
 
-    let items = db.prepare('SELECT * FROM inventory WHERE character_id = ?').all(char.id);
+    let items = await getAll('SELECT * FROM inventory WHERE character_id = $1', [char.id]);
 
     // Apply filters
     const { type, rarity, sort } = req.query;
@@ -34,23 +33,22 @@ router.get('/:charId', authMiddleware, (req, res) => {
 });
 
 // POST /api/inventory/equip
-router.post('/equip', authMiddleware, (req, res) => {
+router.post('/equip', authMiddleware, async (req, res) => {
   try {
     const { characterId, itemId } = req.body;
-    const db = getDb();
-    const char = db.prepare('SELECT * FROM characters WHERE id = ? AND user_id = ?').get(characterId, req.user.id);
+    const char = await getOne('SELECT * FROM characters WHERE id = $1 AND user_id = $2', [characterId, req.user.id]);
     if (!char) return res.status(404).json({ error: 'Character not found.' });
 
-    const item = db.prepare('SELECT * FROM inventory WHERE id = ? AND character_id = ?').get(itemId, characterId);
+    const item = await getOne('SELECT * FROM inventory WHERE id = $1 AND character_id = $2', [itemId, characterId]);
     if (!item) return res.status(404).json({ error: 'Item not found.' });
     if (item.type === 'consumable') return res.status(400).json({ error: 'Cannot equip consumables.' });
 
     // Unequip current item of same type
-    db.prepare('UPDATE inventory SET is_equipped = 0 WHERE character_id = ? AND type = ? AND is_equipped = 1').run(characterId, item.type);
+    await run('UPDATE inventory SET is_equipped = FALSE WHERE character_id = $1 AND type = $2 AND is_equipped = TRUE', [characterId, item.type]);
     // Equip new item
-    db.prepare('UPDATE inventory SET is_equipped = 1 WHERE id = ?').run(itemId);
+    await run('UPDATE inventory SET is_equipped = TRUE WHERE id = $1', [itemId]);
 
-    const inventory = db.prepare('SELECT * FROM inventory WHERE character_id = ?').all(characterId);
+    const inventory = await getAll('SELECT * FROM inventory WHERE character_id = $1', [characterId]);
     res.json({ message: `Equipped ${item.name}!`, inventory });
   } catch (err) {
     console.error('Equip error:', err);
@@ -59,15 +57,14 @@ router.post('/equip', authMiddleware, (req, res) => {
 });
 
 // POST /api/inventory/unequip
-router.post('/unequip', authMiddleware, (req, res) => {
+router.post('/unequip', authMiddleware, async (req, res) => {
   try {
     const { characterId, itemId } = req.body;
-    const db = getDb();
-    const item = db.prepare('SELECT * FROM inventory WHERE id = ? AND character_id = ?').get(itemId, characterId);
+    const item = await getOne('SELECT * FROM inventory WHERE id = $1 AND character_id = $2', [itemId, characterId]);
     if (!item) return res.status(404).json({ error: 'Item not found.' });
 
-    db.prepare('UPDATE inventory SET is_equipped = 0 WHERE id = ?').run(itemId);
-    const inventory = db.prepare('SELECT * FROM inventory WHERE character_id = ?').all(characterId);
+    await run('UPDATE inventory SET is_equipped = FALSE WHERE id = $1', [itemId]);
+    const inventory = await getAll('SELECT * FROM inventory WHERE character_id = $1', [characterId]);
     res.json({ message: `Unequipped ${item.name}.`, inventory });
   } catch (err) {
     console.error('Unequip error:', err);
@@ -76,14 +73,13 @@ router.post('/unequip', authMiddleware, (req, res) => {
 });
 
 // POST /api/inventory/use - Use consumable
-router.post('/use', authMiddleware, (req, res) => {
+router.post('/use', authMiddleware, async (req, res) => {
   try {
     const { characterId, itemId } = req.body;
-    const db = getDb();
-    const char = db.prepare('SELECT * FROM characters WHERE id = ? AND user_id = ?').get(characterId, req.user.id);
+    const char = await getOne('SELECT * FROM characters WHERE id = $1 AND user_id = $2', [characterId, req.user.id]);
     if (!char) return res.status(404).json({ error: 'Character not found.' });
 
-    const item = db.prepare('SELECT * FROM inventory WHERE id = ? AND character_id = ? AND type = ?').get(itemId, characterId, 'consumable');
+    const item = await getOne('SELECT * FROM inventory WHERE id = $1 AND character_id = $2 AND type = $3', [itemId, characterId, 'consumable']);
     if (!item) return res.status(404).json({ error: 'Consumable not found.' });
 
     let effect;
@@ -92,21 +88,21 @@ router.post('/use', authMiddleware, (req, res) => {
     let message = '';
     if (effect.type === 'heal_hp') {
       const newHp = Math.min(char.hp + effect.amount, char.max_hp);
-      db.prepare('UPDATE characters SET hp = ? WHERE id = ?').run(newHp, characterId);
+      await run('UPDATE characters SET hp = $1 WHERE id = $2', [newHp, characterId]);
       message = `Restored ${newHp - char.hp} HP!`;
     } else if (effect.type === 'heal_sp') {
       const newSp = Math.min(char.sp + effect.amount, char.max_sp);
-      db.prepare('UPDATE characters SET sp = ? WHERE id = ?').run(newSp, characterId);
+      await run('UPDATE characters SET sp = $1 WHERE id = $2', [newSp, characterId]);
       message = `Restored ${newSp - char.sp} SP!`;
     }
 
     if (item.quantity > 1) {
-      db.prepare('UPDATE inventory SET quantity = quantity - 1 WHERE id = ?').run(itemId);
+      await run('UPDATE inventory SET quantity = quantity - 1 WHERE id = $1', [itemId]);
     } else {
-      db.prepare('DELETE FROM inventory WHERE id = ?').run(itemId);
+      await run('DELETE FROM inventory WHERE id = $1', [itemId]);
     }
 
-    const updatedChar = db.prepare('SELECT * FROM characters WHERE id = ?').get(characterId);
+    const updatedChar = await getOne('SELECT * FROM characters WHERE id = $1', [characterId]);
     res.json({ message, character: updatedChar });
   } catch (err) {
     console.error('Use item error:', err);
@@ -115,13 +111,12 @@ router.post('/use', authMiddleware, (req, res) => {
 });
 
 // DELETE /api/inventory/:itemId - Discard item
-router.delete('/:itemId', authMiddleware, (req, res) => {
+router.delete('/:itemId', authMiddleware, async (req, res) => {
   try {
-    const db = getDb();
-    const item = db.prepare('SELECT i.*, c.user_id FROM inventory i JOIN characters c ON i.character_id = c.id WHERE i.id = ?').get(req.params.itemId);
+    const item = await getOne('SELECT i.*, c.user_id FROM inventory i JOIN characters c ON i.character_id = c.id WHERE i.id = $1', [req.params.itemId]);
     if (!item || item.user_id !== req.user.id) return res.status(404).json({ error: 'Item not found.' });
 
-    db.prepare('DELETE FROM inventory WHERE id = ?').run(req.params.itemId);
+    await run('DELETE FROM inventory WHERE id = $1', [req.params.itemId]);
     res.json({ message: `Discarded ${item.name}.` });
   } catch (err) {
     console.error('Discard error:', err);

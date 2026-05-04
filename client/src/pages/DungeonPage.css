@@ -7,6 +7,12 @@
 }
 
 .dungeon-status { display: flex; flex-wrap: wrap; gap: var(--space-lg); align-items: center; margin-bottom: var(--space-xl); }
+
+.dungeon-layout { display: grid; grid-template-columns: 1fr; gap: var(--space-lg); }
+@media (min-width: 768px) {
+  .dungeon-layout:has(.dungeon-sidebar) { grid-template-columns: 1fr 300px; }
+}
+.dungeon-sidebar { display: flex; flex-direction: column; gap: var(--space-md); }
 .status-bars { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--space-sm); }
 .status-bar-wrap { display: flex; align-items: center; gap: var(--space-sm); }
 .status-label { font-size: 0.8rem; min-width: 40px; }
@@ -36,6 +42,8 @@
 }
 .room-node.next:hover { border-color: var(--gold); transform: translateY(-4px); box-shadow: var(--shadow-glow-gold); }
 .room-node.locked { opacity: 0.3; }
+.room-node.disabled-node { cursor: not-allowed; opacity: 0.8; }
+.room-node.disabled-node:hover { transform: none; box-shadow: none; border-color: var(--border-bright); }
 .room-icon { font-size: 1.8rem; }
 .room-label { font-size: 0.75rem; font-family: var(--font-heading); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
 .room-enter-hint { font-size: 0.65rem; color: var(--gold); position: absolute; bottom: -20px; white-space: nowrap; }

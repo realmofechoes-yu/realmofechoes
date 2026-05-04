@@ -9,12 +9,22 @@ export function GameProvider({ children }) {
   const [inventory, setInventory] = useState([]);
   const [skills, setSkills] = useState(null);
 
+  // Co-op state
+  const [coopSessionId, setCoopSessionId] = useState(null);
+  const [coopCombatState, setCoopCombatState] = useState(null);
+  const [partyPlayers, setPartyPlayers] = useState([]);
+  const [isHost, setIsHost] = useState(false);
+
   const clearGameState = () => {
     setCurrentCharacter(null);
     setCombatState(null);
     setDungeonState(null);
     setInventory([]);
     setSkills(null);
+    setCoopSessionId(null);
+    setCoopCombatState(null);
+    setPartyPlayers([]);
+    setIsHost(false);
   };
 
   return (
@@ -24,6 +34,10 @@ export function GameProvider({ children }) {
       dungeonState, setDungeonState,
       inventory, setInventory,
       skills, setSkills,
+      coopSessionId, setCoopSessionId,
+      coopCombatState, setCoopCombatState,
+      partyPlayers, setPartyPlayers,
+      isHost, setIsHost,
       clearGameState
     }}>
       {children}

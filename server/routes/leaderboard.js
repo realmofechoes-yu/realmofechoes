@@ -1,20 +1,19 @@
 const express = require('express');
-const { getDb } = require('../db/database');
+const { getOne, getAll } = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
 // GET /api/leaderboard
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const db = getDb();
-    const leaderboard = db.prepare(`
+    const leaderboard = await getAll(`
       SELECT u.id, u.username, u.deepest_floor, u.total_gold, u.total_runs,
              (SELECT COUNT(*) FROM characters c WHERE c.user_id = u.id) as total_characters
       FROM users u
       ORDER BY u.deepest_floor DESC, u.total_gold DESC
       LIMIT 50
-    `).all();
+    `);
 
     res.json(leaderboard);
   } catch (err) {
@@ -24,10 +23,9 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/leaderboard/achievements/:userId
-router.get('/achievements/:userId', authMiddleware, (req, res) => {
+router.get('/achievements/:userId', authMiddleware, async (req, res) => {
   try {
-    const db = getDb();
-    const achievements = db.prepare('SELECT * FROM achievements WHERE user_id = ? ORDER BY unlocked_at DESC').all(req.params.userId);
+    const achievements = await getAll('SELECT * FROM achievements WHERE user_id = $1 ORDER BY unlocked_at DESC', [req.params.userId]);
     res.json(achievements);
   } catch (err) {
     console.error('Achievements error:', err);

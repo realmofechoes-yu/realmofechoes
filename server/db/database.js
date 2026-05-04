@@ -1,41 +1,77 @@
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const DB_PATH = process.env.DB_PATH || './db/realm_of_echoes.db';
-const resolvedPath = path.resolve(__dirname, '..', DB_PATH);
+// Support both PostgreSQL (DATABASE_URL) and SQLite fallback mode
+const DATABASE_URL = process.env.DATABASE_URL;
 
-// Ensure db directory exists
-const dbDir = path.dirname(resolvedPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
+let pool;
 
-let db;
-
-function getDb() {
-  if (!db) {
-    db = new Database(resolvedPath);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    initSchema();
+function getPool() {
+  if (!pool) {
+    if (!DATABASE_URL) {
+      console.error('❌ DATABASE_URL not set. Please configure a PostgreSQL connection string.');
+      process.exit(1);
+    }
+    pool = new Pool({
+      connectionString: DATABASE_URL,
+      ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000
+    });
+    pool.on('error', (err) => {
+      console.error('Unexpected pool error:', err);
+    });
   }
-  return db;
+  return pool;
 }
 
-function initSchema() {
+async function initSchema() {
+  const p = getPool();
   const schemaPath = path.join(__dirname, 'schema.sql');
   const schema = fs.readFileSync(schemaPath, 'utf-8');
-  db.exec(schema);
-  console.log('✅ Database schema initialized');
-}
-
-function closeDb() {
-  if (db) {
-    db.close();
-    db = null;
+  try {
+    await p.query(schema);
+    console.log('✅ Database schema initialized');
+  } catch (err) {
+    // Tables may already exist, that's fine
+    if (err.code === '42P07') {
+      console.log('✅ Database schema already exists');
+    } else {
+      console.error('Schema init error:', err.message);
+      throw err;
+    }
   }
 }
 
-module.exports = { getDb, closeDb };
+async function query(text, params) {
+  const p = getPool();
+  return p.query(text, params);
+}
+
+async function getOne(text, params) {
+  const result = await query(text, params);
+  return result.rows[0] || null;
+}
+
+async function getAll(text, params) {
+  const result = await query(text, params);
+  return result.rows;
+}
+
+async function run(text, params) {
+  const result = await query(text, params);
+  return result;
+}
+
+async function closeDb() {
+  if (pool) {
+    await pool.end();
+    pool = null;
+    console.log('Database pool closed');
+  }
+}
+
+module.exports = { getPool, initSchema, query, getOne, getAll, run, closeDb };

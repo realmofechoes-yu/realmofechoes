@@ -1,5 +1,6 @@
 .dashboard { max-width: 1000px; margin: 0 auto; }
 .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl); flex-wrap: wrap; gap: var(--space-md); }
+.dashboard-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 .page-title { font-family: var(--font-heading); font-size: 1.75rem; color: var(--text-gold); margin-bottom: var(--space-xs); }
 .page-subtitle { color: var(--text-secondary); font-size: 0.9rem; }
 

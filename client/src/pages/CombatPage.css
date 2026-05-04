@@ -14,8 +14,23 @@
 .combatant {
   padding: var(--space-lg); background: var(--surface-glass); backdrop-filter: blur(12px);
   border: 1px solid var(--border-dim); border-radius: var(--radius-lg); text-align: center;
+  transition: all 0.3s;
+}
+.coop-players-side {
+  display: flex; flex-wrap: wrap; gap: var(--space-sm); justify-content: center;
+}
+.coop-players-side .combatant {
+  flex: 1; min-width: 120px; padding: var(--space-sm);
+}
+.combatant.active-turn {
+  border-color: var(--gold);
+  box-shadow: 0 0 15px rgba(212,163,71,0.3);
+}
+.combatant.dead {
+  opacity: 0.5; filter: grayscale(1); border-color: var(--danger);
 }
 .combatant-icon { font-size: 3.5rem; margin-bottom: var(--space-sm); }
+.coop-players-side .combatant-icon { font-size: 2rem; }
 .enemy-icon { filter: drop-shadow(0 0 10px rgba(196,75,47,0.4)); }
 .combatant-name { font-family: var(--font-heading); font-size: 1.25rem; margin-bottom: 4px; }
 .combatant-level { font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: var(--space-md); }

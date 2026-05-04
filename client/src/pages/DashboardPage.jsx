@@ -52,7 +52,10 @@ export default function DashboardPage() {
           <h2 className="page-title">⚜️ Hall of Heroes</h2>
           <p className="page-subtitle">Select a champion or forge a new legend.</p>
         </div>
-        <button className="btn btn-gold" onClick={() => navigate('/create')} id="new-hero-btn">✨ New Hero</button>
+        <div className="dashboard-actions">
+          <button className="btn btn-ember" onClick={() => navigate('/lobby')} id="coop-btn">🏰 Co-Op Lobby</button>
+          <button className="btn btn-gold" onClick={() => navigate('/create')} id="new-hero-btn">✨ New Hero</button>
+        </div>
       </div>
 
       {user?.achievements && user.achievements.length > 0 && (
