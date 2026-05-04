@@ -22,6 +22,11 @@ export const CLASS_INFO = {
     name: 'Mage',
     icon: '🔮',
     sprite: '/sprites/mage.png',
+    sprites: {
+      idle: '/sprites/mage/idle.gif',
+      attack: '/sprites/mage/attack.gif',
+      dead: '/sprites/mage/dead.gif'
+    },
     color: 'var(--arcane)',
     colorBright: 'var(--arcane-bright)',
     description: 'A wielder of arcane forces, bending the elements to their will. Devastating at range but fragile up close.',
@@ -36,6 +41,11 @@ export const CLASS_INFO = {
     name: 'Ranger',
     icon: '🏹',
     sprite: '/sprites/ranger.png',
+    sprites: {
+      idle: '/sprites/ranger/idle.gif',
+      attack: '/sprites/ranger/attack.gif',
+      dead: '/sprites/ranger/dead.gif'
+    },
     color: 'var(--nature)',
     colorBright: 'var(--nature-bright)',
     description: 'A swift hunter who strikes from the shadows. High critical chance and evasion make them deadly unpredictable.',
