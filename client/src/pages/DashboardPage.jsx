@@ -117,8 +117,15 @@ export default function DashboardPage() {
                       <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: info?.colorBright }}>{info?.name}</span>
                     </div>
                   </div>
-                  <div className="font-title text-lg font-bold text-gold bg-gold/10 px-3 py-1 rounded-full border border-gold/30 shadow-inner">
-                    Lv.{char.level}
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="font-title text-lg font-bold text-gold bg-gold/10 px-3 py-1 rounded-full border border-gold/30 shadow-inner">
+                      Lv.{char.level}
+                    </div>
+                    {isDead && (
+                      <div className="bg-red-900/80 backdrop-blur text-red-200 text-xs font-bold px-3 py-1 rounded-full border border-red-500/50 shadow-glow-health animate-pulse-slow">
+                        💀 Fallen
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -161,12 +168,6 @@ export default function DashboardPage() {
                   <span className="flex items-center gap-1">💀 {char.enemies_defeated || 0} kills</span>
                   <span className="flex items-center gap-1 text-gold/80">💰 {char.gold} gold</span>
                 </div>
-
-                {isDead && (
-                  <div className="absolute top-4 right-4 bg-red-900/80 backdrop-blur text-red-200 text-xs font-bold px-3 py-1 rounded-full border border-red-500/50 shadow-glow-health z-20 animate-pulse-slow">
-                    💀 Fallen
-                  </div>
-                )}
 
                 <div className="flex gap-3 relative z-10">
                   <button className="btn btn-gold flex-1 !text-xs !py-2" onClick={() => handleContinue(char)} id={`continue-${char.id}`}>
