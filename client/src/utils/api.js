@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const VITE_API_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE = VITE_API_URL.endsWith('/') ? `${VITE_API_URL}api` : `${VITE_API_URL}/api`;
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('roe_token');
