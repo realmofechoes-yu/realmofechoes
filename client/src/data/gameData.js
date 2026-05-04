@@ -3,6 +3,11 @@ export const CLASS_INFO = {
     name: 'Warrior',
     icon: '⚔️',
     sprite: '/sprites/warrior.png',
+    sprites: {
+      idle: '/sprites/warrior/idle.gif',
+      attack: '/sprites/warrior/attack.gif',
+      dead: '/sprites/warrior/dead.gif'
+    },
     color: 'var(--ember)',
     colorBright: 'var(--ember-bright)',
     description: 'A stalwart defender with unmatched endurance. Masters of melee combat who shrug off blows that would fell lesser fighters.',

@@ -289,7 +289,7 @@ export default function CombatPage() {
 
               return (
                 <div key={p.userId} className={`combatant player-side ${shake ? 'animate-shake' : ''} ${isTurn ? 'active-turn' : ''} ${isDead ? 'dead' : ''}`}>
-                  <div className="combatant-icon">{isDead ? '💀' : (ci?.sprite ? <img src={ci.sprite} alt={p.username} className="combatant-sprite" /> : ci?.icon)}</div>
+                  <div className="combatant-icon">{isDead ? (ci?.sprites?.dead ? <img src={ci.sprites.dead} alt={p.username} className="combatant-sprite" /> : '💀') : ((ci?.sprites?.idle || ci?.sprite) ? <img src={(isTurn && enemyShake) ? (ci?.sprites?.attack || ci?.sprites?.idle || ci?.sprite) : (ci?.sprites?.idle || ci?.sprite)} alt={p.username} className="combatant-sprite" /> : ci?.icon)}</div>
                   <h3 className="combatant-name">{p.username}</h3>
                   <div className="combatant-bars">
                     <div className="stat-bar stat-bar-hp"><div className="stat-bar-fill" style={{ width: `${hpPct}%` }}></div></div>
@@ -301,7 +301,7 @@ export default function CombatPage() {
             })
           ) : (
             <div className={`combatant player-side ${playerShakes['me'] ? 'animate-shake' : ''}`}>
-              <div className="combatant-icon">{CLASS_INFO[myPlayerState.class]?.sprite ? <img src={CLASS_INFO[myPlayerState.class].sprite} alt={myPlayerState.name} className="combatant-sprite" /> : CLASS_INFO[myPlayerState.class]?.icon}</div>
+              <div className="combatant-icon">{(!myPlayerState.isAlive && CLASS_INFO[myPlayerState.class]?.sprites?.dead) ? <img src={CLASS_INFO[myPlayerState.class].sprites.dead} alt={myPlayerState.name} className="combatant-sprite" /> : ((CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) ? <img src={(isMyTurn && enemyShake) ? (CLASS_INFO[myPlayerState.class]?.sprites?.attack || CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) : (CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite)} alt={myPlayerState.name} className="combatant-sprite" /> : CLASS_INFO[myPlayerState.class]?.icon)}</div>
               <h3 className="combatant-name">{myPlayerState.name}</h3>
               <span className="combatant-level">Lv.{myPlayerState.level} {CLASS_INFO[myPlayerState.class]?.name}</span>
               <div className="combatant-bars">
@@ -325,7 +325,7 @@ export default function CombatPage() {
 
         {/* Enemy Side */}
         <div className={`combatant enemy-side ${enemyShake ? 'animate-shake' : ''}`}>
-          <div className="combatant-icon enemy-icon">{enemy.sprite ? <img src={enemy.sprite} alt={enemy.name} className="combatant-sprite" /> : (enemy.isBoss ? '👹' : '💀')}</div>
+          <div className="combatant-icon enemy-icon">{(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShakes['me'] ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="combatant-sprite" /> : (enemy.isBoss ? '👹' : '💀')}</div>
           <h3 className="combatant-name">{enemy.name}</h3>
           <p className="enemy-flavor">{enemy.flavorText}</p>
           <div className="combatant-bars">
