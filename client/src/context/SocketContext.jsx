@@ -22,9 +22,10 @@ export function SocketProvider({ children }) {
 
     if (socketRef.current?.connected) return;
 
-    const s = io('/', {
+    const socketUrl = import.meta.env.VITE_API_URL || '/';
+    const s = io(socketUrl, {
       auth: { token },
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000
@@ -62,9 +63,10 @@ export function SocketProvider({ children }) {
       socketRef.current.disconnect();
     }
 
-    const s = io('/', {
+    const socketUrl = import.meta.env.VITE_API_URL || '/';
+    const s = io(socketUrl, {
       auth: { token },
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000
