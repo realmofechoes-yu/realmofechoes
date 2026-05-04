@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import api from '../utils/api';
 import { RARITY_LABELS } from '../data/gameData';
@@ -7,6 +7,7 @@ import './InventoryPage.css';
 
 export default function InventoryPage() {
   const { charId } = useParams();
+  const navigate = useNavigate();
   const { currentCharacter, setCurrentCharacter } = useGame();
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState('');
@@ -70,9 +71,20 @@ export default function InventoryPage() {
 
   if (loading) return <div className="loader-container"><div className="loader"></div></div>;
 
+  const { combatState, coopCombatState, coopSessionId } = useGame();
+  const isInCombat = !!combatState || !!coopCombatState;
+
   return (
     <div className="inventory-page animate-fade-in">
-      <h2 className="page-title">🎒 Inventory</h2>
+      <div className="inv-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h2 className="page-title" style={{ margin: 0 }}>🎒 Inventory</h2>
+        <button 
+          className="btn btn-ghost" 
+          onClick={() => navigate(isInCombat ? `/combat/${charId}${coopSessionId ? `?coop=${coopSessionId}` : ''}` : `/dungeon/${charId}${coopSessionId ? `?coop=${coopSessionId}` : ''}`)}
+        >
+          {isInCombat ? '⚔️ Return to Fight' : '⬅️ Return to Dungeon'}
+        </button>
+      </div>
 
       <div className="inv-controls">
         <div className="filter-group">

@@ -148,6 +148,24 @@ function registerCombatHandlers(io, socket) {
       callback({ success: false, error: 'Combat error.' });
     }
   });
+
+  // Host dismisses the combat result
+  socket.on('combat:dismiss_result', async (data, callback) => {
+    try {
+      const { sessionId, lobbyId } = data;
+      // We don't have the combatState anymore because it was deleted on victory/defeat,
+      // but we can just broadcast to the lobby to navigate.
+      const lobby = getActiveLobbies().get(lobbyId);
+      if (!lobby) return callback({ success: false, error: 'Lobby not found.' });
+      if (lobby.hostUserId !== socket.user.id) return callback({ success: false, error: 'Only host can dismiss.' });
+
+      io.to(`lobby:${lobbyId}`).emit('combat:result_dismissed', {});
+      if (callback) callback({ success: true });
+    } catch (err) {
+      console.error('Dismiss combat result error:', err);
+      if (callback) callback({ success: false, error: 'Server error.' });
+    }
+  });
 }
 
 function resolvePlayerAction(player, enemy, action, skillKey, itemId, turnLog, playerData, username, charId) {

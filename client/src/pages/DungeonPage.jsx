@@ -113,6 +113,10 @@ export default function DungeonPage() {
     navigate(`/summary/${charId}`);
   });
 
+  useSocketEvent('dungeon:event_dismissed', () => {
+    setEventModal(null);
+  });
+
   useSocketEvent('combat:started', (data) => {
     setCoopCombatState(data.combatState);
     navigate(`/combat/${charId}?coop=${coopSessionId || queryParams.get('coop')}`);
@@ -351,7 +355,14 @@ export default function DungeonPage() {
                 ))}
               </div>
             )}
-            <button className="btn btn-gold btn-full mt-lg" onClick={() => setEventModal(null)}>Continue</button>
+            {(!isCoop || isHost) ? (
+              <button className="btn btn-gold btn-full mt-lg" onClick={() => {
+                if (isCoop) emitNoAck('dungeon:dismiss_event', { sessionId: coopSessionId || queryParams.get('coop') });
+                setEventModal(null);
+              }}>Continue</button>
+            ) : (
+              <p className="text-dim mt-sm text-center">Waiting for host to continue...</p>
+            )}
           </div>
         </div>
       )}

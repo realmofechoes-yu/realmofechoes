@@ -135,6 +135,10 @@ export default function CombatPage() {
     setResult({ victory: false, echoReward: data.echoReward });
   });
 
+  useSocketEvent('combat:result_dismissed', () => {
+    navigate(`/dungeon/${charId}?coop=${coopSessionId || queryParams.get('coop')}`);
+  });
+
   // --- UNIFIED ACTION PROCESSING ---
 
   const processAction = async (action, skillKey = null, itemId = null) => {
@@ -395,9 +399,16 @@ export default function CombatPage() {
                 </div>
               )}
               {result.leveledUp && !isCoop && <p className="level-up-msg">🎊 Level Up! Check your stat points!</p>}
-              <button className="btn btn-gold btn-lg btn-full mt-lg" onClick={() => navigate(`/dungeon/${charId}?coop=${coopSessionId || ''}`)} id="btn-continue">
-                Return to Dungeon
-              </button>
+              {(!isCoop || state.players.find(p => p.userId === user.id)?.slotIndex === 0) ? (
+                <button className="btn btn-gold btn-lg btn-full mt-lg" onClick={() => {
+                  if (isCoop) emitNoAck('combat:dismiss_result', { sessionId: coopSessionId || queryParams.get('coop'), lobbyId: state.lobbyId });
+                  if (!isCoop) navigate(`/dungeon/${charId}`);
+                }} id="btn-continue">
+                  Return to Dungeon
+                </button>
+              ) : (
+                <p className="text-dim mt-sm text-center">Waiting for host to continue...</p>
+              )}
             </>
           ) : (
             <>

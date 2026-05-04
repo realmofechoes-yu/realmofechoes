@@ -168,6 +168,25 @@ function registerGameHandlers(io, socket) {
     }
   });
 
+  // Host dismisses the event modal
+  socket.on('dungeon:dismiss_event', async (data, callback) => {
+    try {
+      const { sessionId } = data;
+      const session = activeSessions.get(sessionId);
+      if (!session) return callback({ success: false, error: 'No active session.' });
+
+      const lobby = getActiveLobbies().get(session.lobbyId);
+      if (!lobby) return callback({ success: false, error: 'Lobby not found.' });
+      if (lobby.hostUserId !== socket.user.id) return callback({ success: false, error: 'Only host can dismiss.' });
+
+      io.to(`lobby:${session.lobbyId}`).emit('dungeon:event_dismissed', {});
+      if (callback) callback({ success: true });
+    } catch (err) {
+      console.error('Dismiss event error:', err);
+      if (callback) callback({ success: false, error: 'Server error.' });
+    }
+  });
+
   // Sync state (for reconnection)
   socket.on('session:sync', async (data, callback) => {
     try {
