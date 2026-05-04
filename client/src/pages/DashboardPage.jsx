@@ -111,7 +111,7 @@ export default function DashboardPage() {
 
                 <div className="flex justify-between items-start mb-6 relative z-10">
                   <div className="flex gap-4">
-                    <div className="text-4xl drop-shadow-lg flex items-center justify-center w-12 h-12">{(info?.sprites?.idle || info?.sprite) ? <img src={isDead ? (info?.sprites?.dead || info?.sprites?.idle || info?.sprite) : (info?.sprites?.idle || info?.sprite)} alt={info?.name} className="w-12 h-12 object-contain drop-shadow-[0_0_5px_rgba(255,255,255,0.1)]" /> : <span style={{ color: info?.colorBright }}>{info?.icon}</span>}</div>
+                    <div className="text-4xl drop-shadow-lg flex items-center justify-center w-16 h-16">{(info?.sprites?.idle || info?.sprite) ? <img src={isDead ? (info?.sprites?.dead || info?.sprites?.idle || info?.sprite) : (info?.sprites?.idle || info?.sprite)} alt={info?.name} className="w-16 h-16 object-contain drop-shadow-[0_0_5px_rgba(255,255,255,0.1)] scale-150" style={{ imageRendering: 'pixelated' }} /> : <span style={{ color: info?.colorBright }}>{info?.icon}</span>}</div>
                     <div>
                       <h3 className="font-title text-xl font-bold text-gray-100 drop-shadow-sm">{char.name}</h3>
                       <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: info?.colorBright }}>{info?.name}</span>
