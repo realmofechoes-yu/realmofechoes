@@ -166,6 +166,18 @@ function registerCombatHandlers(io, socket) {
       if (callback) callback({ success: false, error: 'Server error.' });
     }
   });
+
+  // Sync combat state (for reconnection)
+  socket.on('combat:sync', (data, callback) => {
+    const { sessionId } = data;
+    const state = coopCombatStates.get(sessionId);
+    if (!state) return callback({ success: false, error: 'No active combat for this session.' });
+    
+    // Re-join the lobby room just in case
+    socket.join(`lobby:${state.lobbyId}`);
+    
+    callback({ success: true, combatState: sanitizeCoopState(state) });
+  });
 }
 
 function resolvePlayerAction(player, enemy, action, skillKey, itemId, turnLog, playerData, username, charId) {
@@ -357,9 +369,14 @@ async function handleCoopVictory(io, combatState, turnLog) {
     let newStatPts = char.stat_points;
     const lu = checkLevelUp(newXp, newLevel);
     if (lu.leveledUp) { newXp = lu.remainingXp; newLevel++; newStatPts += lu.statPoints; }
-    await run('UPDATE characters SET xp=$1, level=$2, stat_points=$3, gold=gold+$4, hp=$5, sp=$6, enemies_defeated=enemies_defeated+1, damage_dealt_total=damage_dealt_total+$7, damage_received_total=damage_received_total+$8, updated_at=NOW() WHERE id=$9',
+    await run('UPDATE characters SET xp=$1, level=$2, stat_points=$3, gold=gold+$4, hp=$5, sp=$6, current_room = current_room + 1, rooms_cleared = rooms_cleared + 1, enemies_defeated=enemies_defeated+1, damage_dealt_total=damage_dealt_total+$7, damage_received_total=damage_received_total+$8, updated_at=NOW() WHERE id=$9',
       [newXp, newLevel, newStatPts, goldEach, p.state.hp, p.state.sp, p.totalDamageDealt, p.totalDamageReceived, p.state.id]);
   }
+
+  // Also update the session room
+  await run('UPDATE coop_sessions SET current_room = current_room + 1, updated_at = NOW() WHERE id = $1', [combatState.sessionId]);
+  const session = getSession(combatState.sessionId);
+  if (session) session.currentRoom += 1;
 
   const loot = generateCombatLoot(combatState.players[0]?.state.current_floor || 1, enemy.id);
   for (let i = 0; i < loot.length; i++) {

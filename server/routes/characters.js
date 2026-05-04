@@ -108,7 +108,9 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const character = await getOne('SELECT * FROM characters WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     if (!character) return res.status(404).json({ error: 'Character not found.' });
-
+    
+    // Clear references in other tables first to avoid foreign key constraint errors
+    await run('UPDATE lobby_members SET character_id = NULL WHERE character_id = $1', [character.id]);
     await run('DELETE FROM combat_logs WHERE character_id = $1', [character.id]);
     await run('DELETE FROM inventory WHERE character_id = $1', [character.id]);
     await run('DELETE FROM characters WHERE id = $1', [character.id]);

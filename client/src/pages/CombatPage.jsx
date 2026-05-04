@@ -49,10 +49,38 @@ export default function CombatPage() {
   }, [location.search]);
 
   useEffect(() => {
-    if (!isCoop && !combatState) navigate(`/dungeon/${charId}`);
-    if (isCoop && !coopCombatState) navigate(`/dungeon/${charId}?coop=${coopSessionId || queryParams.get('coop')}`);
+    const syncCombat = async () => {
+      if (isCoop) {
+        if (!coopCombatState) {
+          const sid = coopSessionId || queryParams.get('coop');
+          if (sid && connected) {
+            try {
+              const res = await emit('combat:sync', { sessionId: sid });
+              if (res.success) {
+                setCoopCombatState(res.combatState);
+              } else {
+                navigate(`/dungeon/${charId}?coop=${sid}`);
+              }
+            } catch (err) {
+              navigate(`/dungeon/${charId}?coop=${sid}`);
+            }
+          }
+        }
+      } else {
+        if (!combatState) {
+          try {
+            const data = await api.getActiveCombat(charId);
+            setCombatState(data.combatState);
+          } catch (err) {
+            navigate(`/dungeon/${charId}`);
+          }
+        }
+      }
+    };
+
+    syncCombat();
     loadConsumables();
-  }, []);
+  }, [connected, charId]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -136,6 +164,7 @@ export default function CombatPage() {
   });
 
   useSocketEvent('combat:result_dismissed', () => {
+    setCoopCombatState(null);
     navigate(`/dungeon/${charId}?coop=${coopSessionId || queryParams.get('coop')}`);
   });
 
@@ -198,7 +227,10 @@ export default function CombatPage() {
       const data = await api.flee(parseInt(charId));
       if (data.fled) {
         setAllLogs(prev => [...prev, { type: 'flee', message: 'You escaped!' }]);
-        setTimeout(() => navigate(`/dungeon/${charId}`), 1500);
+        setTimeout(() => {
+          setCombatState(null);
+          navigate(`/dungeon/${charId}`);
+        }, 1500);
       } else {
         setCombatState(data.combatState);
         setTurnLog(data.turnLog);
@@ -401,8 +433,12 @@ export default function CombatPage() {
               {result.leveledUp && !isCoop && <p className="level-up-msg">🎊 Level Up! Check your stat points!</p>}
               {(!isCoop || state.players.find(p => p.userId === user.id)?.slotIndex === 0) ? (
                 <button className="btn btn-gold btn-lg btn-full mt-lg" onClick={() => {
-                  if (isCoop) emitNoAck('combat:dismiss_result', { sessionId: coopSessionId || queryParams.get('coop'), lobbyId: state.lobbyId });
-                  if (!isCoop) navigate(`/dungeon/${charId}`);
+                  if (isCoop) {
+                    emitNoAck('combat:dismiss_result', { sessionId: coopSessionId || queryParams.get('coop'), lobbyId: state.lobbyId });
+                  } else {
+                    setCombatState(null);
+                    navigate(`/dungeon/${charId}`);
+                  }
                 }} id="btn-continue">
                   Return to Dungeon
                 </button>

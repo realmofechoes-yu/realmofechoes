@@ -10,6 +10,13 @@ const router = express.Router();
 // In-memory combat states (keyed by character id)
 const combatStates = {};
 
+// GET /api/combat/active/:characterId
+router.get('/active/:characterId', authMiddleware, (req, res) => {
+  const state = combatStates[req.params.characterId];
+  if (!state) return res.status(404).json({ error: 'No active combat.' });
+  res.json({ combatState: state, skills: CLASS_SKILLS[state.player.class] });
+});
+
 // POST /api/combat/start
 router.post('/start', authMiddleware, async (req, res) => {
   try {
@@ -228,7 +235,7 @@ async function handleVictory(req, res, state, turnLog) {
     turnLog.push({ type: 'level_up', level: newLevel, statPoints: levelUpResult.statPoints, message: `Level up! Now level ${newLevel}! +${levelUpResult.statPoints} stat points!` });
   }
 
-  await run('UPDATE characters SET xp=$1, level=$2, stat_points=$3, gold=gold+$4, hp=$5, sp=$6, enemies_defeated=enemies_defeated+1, damage_dealt_total=damage_dealt_total+$7, damage_received_total=damage_received_total+$8, updated_at=NOW() WHERE id=$9',
+  await run('UPDATE characters SET xp=$1, level=$2, stat_points=$3, gold=gold+$4, hp=$5, sp=$6, current_room = current_room + 1, rooms_cleared = rooms_cleared + 1, enemies_defeated=enemies_defeated+1, damage_dealt_total=damage_dealt_total+$7, damage_received_total=damage_received_total+$8, updated_at=NOW() WHERE id=$9',
     [newXp, newLevel, newStatPoints, goldGained, player.hp, player.sp, state.totalDamageDealt, state.totalDamageReceived, characterId]);
 
   await run('INSERT INTO combat_logs (character_id,floor,room,enemy_name,outcome,turns_taken,damage_dealt,damage_received,xp_gained,gold_gained,log_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',

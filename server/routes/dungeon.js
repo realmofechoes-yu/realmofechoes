@@ -105,7 +105,12 @@ router.post('/move', authMiddleware, async (req, res) => {
       }
     }
 
-    await run('UPDATE characters SET current_room = $1, rooms_cleared = rooms_cleared + 1, updated_at = NOW() WHERE id = $2', [roomIndex, char.id]);
+    // Only update room progress if it's not a combat/boss room. 
+    // Combat rooms will update the current_room state ONLY upon victory.
+    if (room.type !== 'combat' && room.type !== 'boss') {
+      await run('UPDATE characters SET current_room = $1, rooms_cleared = rooms_cleared + 1, updated_at = NOW() WHERE id = $2', [roomIndex, char.id]);
+    }
+    
     result.character = await getOne('SELECT * FROM characters WHERE id = $1', [char.id]);
     res.json(result);
   } catch (err) {

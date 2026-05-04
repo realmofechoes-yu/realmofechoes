@@ -101,13 +101,17 @@ function registerGameHandlers(io, socket) {
         }
       }
 
-      session.currentRoom = roomIndex;
-      await run('UPDATE coop_sessions SET current_room = $1, updated_at = NOW() WHERE id = $2', [roomIndex, sessionId]);
+      // Only update room progress if it's not a combat/boss room.
+      // Combat rooms update the current_room state ONLY upon victory.
+      if (room.type !== 'combat' && room.type !== 'boss') {
+        session.currentRoom = roomIndex;
+        await run('UPDATE coop_sessions SET current_room = $1, updated_at = NOW() WHERE id = $2', [roomIndex, sessionId]);
 
-      // Update all characters' room position
-      for (const p of lobby.players) {
-        if (!p.characterId) continue;
-        await run('UPDATE characters SET current_room = $1, rooms_cleared = rooms_cleared + 1, updated_at = NOW() WHERE id = $2', [roomIndex, p.characterId]);
+        // Update all characters' room position
+        for (const p of lobby.players) {
+          if (!p.characterId) continue;
+          await run('UPDATE characters SET current_room = $1, rooms_cleared = rooms_cleared + 1, updated_at = NOW() WHERE id = $2', [roomIndex, p.characterId]);
+        }
       }
 
       // Fetch updated character data for all players

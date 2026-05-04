@@ -8,12 +8,13 @@ import './DashboardPage.css';
 
 export default function DashboardPage() {
   const { user, refreshProfile } = useAuth();
-  const { setCurrentCharacter } = useGame();
+  const { setCurrentCharacter, clearGameState } = useGame();
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
+    clearGameState();
     loadCharacters();
     refreshProfile();
   }, []);

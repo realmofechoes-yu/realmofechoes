@@ -36,6 +36,7 @@ export const api = {
   startCombat: (characterId, enemy) => request('/combat/start', { method: 'POST', body: JSON.stringify({ characterId, enemy }) }),
   combatAction: (characterId, action, skillKey, itemId) => request('/combat/action', { method: 'POST', body: JSON.stringify({ characterId, action, skillKey, itemId }) }),
   flee: (characterId) => request('/combat/flee', { method: 'POST', body: JSON.stringify({ characterId }) }),
+  getActiveCombat: (characterId) => request(`/combat/active/${characterId}`),
   getCombatLogs: (charId) => request(`/combat/${charId}/log`),
 
   // Inventory
