@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
 import api from '../utils/api';
 import { CLASS_INFO } from '../data/gameData';
-import './DashboardPage.css';
 
 export default function DashboardPage() {
   const { user, refreshProfile } = useAuth();
@@ -44,29 +43,35 @@ export default function DashboardPage() {
     } catch (err) { console.error(err); }
   };
 
-  if (loading) return <div className="loader-container"><div className="loader"></div><p>Loading heroes...</p></div>;
+  if (loading) return <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin"></div><p className="text-gray-400 font-serif italic">Summoning heroes...</p></div>;
 
   return (
-    <div className="dashboard animate-fade-in">
-      <div className="dashboard-header">
+    <div className="w-full max-w-6xl mx-auto animate-fade-in">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
-          <h2 className="page-title">⚜️ Hall of Heroes</h2>
-          <p className="page-subtitle">Select a champion or forge a new legend.</p>
+          <h2 className="text-3xl font-title font-bold text-gold drop-shadow-md flex items-center gap-3">
+            <span className="text-4xl">⚜️</span> Hall of Heroes
+          </h2>
+          <p className="text-gray-400 mt-2 font-serif italic">Select a champion or forge a new legend.</p>
         </div>
-        <div className="dashboard-actions">
-          <button className="btn btn-ember" onClick={() => navigate('/lobby')} id="coop-btn">🏰 Co-Op Lobby</button>
-          <button className="btn btn-gold" onClick={() => navigate('/create')} id="new-hero-btn">✨ New Hero</button>
+        <div className="flex flex-wrap gap-4 w-full md:w-auto">
+          <button className="btn btn-danger flex-1 md:flex-none shadow-glow-health" onClick={() => navigate('/lobby')} id="coop-btn">
+            <span className="text-lg">🏰</span> Co-Op Lobby
+          </button>
+          <button className="btn btn-gold flex-1 md:flex-none shadow-glow-gold" onClick={() => navigate('/create')} id="new-hero-btn">
+            <span className="text-lg">✨</span> New Hero
+          </button>
         </div>
       </div>
 
       {user?.achievements && user.achievements.length > 0 && (
-        <div className="achievements-bar panel">
-          <h4>🏆 Achievements</h4>
-          <div className="achievement-list">
+        <div className="mb-10 panel bg-dark-surface/40 border-gold/20">
+          <h4 className="font-title text-gold mb-4 text-lg flex items-center gap-2">🏆 Achievements</h4>
+          <div className="flex flex-wrap gap-3">
             {user.achievements.map(a => (
-              <div key={a.achievement_key} className="achievement-badge" title={a.description}>
-                <span>{a.icon}</span>
-                <span>{a.achievement_name}</span>
+              <div key={a.achievement_key} className="flex items-center gap-2 px-4 py-2 bg-dark-bg/60 border border-dark-border hover:border-gold hover:bg-gold/5 rounded-full text-sm text-gray-300 hover:text-gold transition-all duration-300 cursor-default shadow-sm" title={a.description}>
+                <span className="text-lg">{a.icon}</span>
+                <span className="font-medium">{a.achievement_name}</span>
               </div>
             ))}
           </div>
@@ -74,61 +79,102 @@ export default function DashboardPage() {
       )}
 
       {characters.length === 0 ? (
-        <div className="empty-state panel">
-          <div className="empty-icon">🗡️</div>
-          <h3>No Heroes Yet</h3>
-          <p>Create your first champion to begin your journey into the dungeon.</p>
-          <button className="btn btn-gold btn-lg" onClick={() => navigate('/create')}>✨ Create Your First Hero</button>
+        <div className="text-center py-20 panel panel-glow bg-dark-surface/40 border-gold/30">
+          <div className="text-6xl mb-6 opacity-80 animate-float">🗡️</div>
+          <h3 className="font-title text-2xl text-gold mb-3 drop-shadow-sm">No Heroes Yet</h3>
+          <p className="text-gray-400 mb-8 font-serif italic">Create your first champion to begin your journey into the dungeon.</p>
+          <button className="btn btn-gold !py-3 !px-8 text-base shadow-glow-gold" onClick={() => navigate('/create')}>
+            ✨ Forge Your First Hero
+          </button>
         </div>
       ) : (
-        <div className="character-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {characters.map((char, i) => {
             const info = CLASS_INFO[char.class];
             const hpPercent = (char.hp / char.max_hp) * 100;
             const spPercent = (char.sp / char.max_sp) * 100;
             const isDead = !char.is_alive || char.run_status === 'dead';
+            
+            // Generate a subtle gradient overlay based on class
+            const classGradient = char.class === 'warrior' ? 'from-red-900/20' 
+                               : char.class === 'mage' ? 'from-purple-900/20' 
+                               : 'from-green-900/20';
+
             return (
-              <div key={char.id} className={`char-card panel ${isDead ? 'char-dead' : ''}`} style={{ animationDelay: `${i * 0.1}s` }}>
-                <div className="char-card-header">
-                  <div className="char-class-icon" style={{ color: info?.colorBright }}>{info?.icon}</div>
-                  <div>
-                    <h3 className="char-card-name">{char.name}</h3>
-                    <span className="char-card-class" style={{ color: info?.colorBright }}>{info?.name}</span>
+              <div 
+                key={char.id} 
+                className={`panel group overflow-hidden relative ${isDead ? 'opacity-75 grayscale-[30%]' : ''}`} 
+                style={{ animationDelay: `${i * 0.1}s` }}
+              >
+                {/* Class-based subtle background gradient */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${classGradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
+
+                <div className="flex justify-between items-start mb-6 relative z-10">
+                  <div className="flex gap-4">
+                    <div className="text-4xl drop-shadow-lg" style={{ color: info?.colorBright }}>{info?.icon}</div>
+                    <div>
+                      <h3 className="font-title text-xl font-bold text-gray-100 drop-shadow-sm">{char.name}</h3>
+                      <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: info?.colorBright }}>{info?.name}</span>
+                    </div>
                   </div>
-                  <div className="char-card-level">Lv.{char.level}</div>
-                </div>
-
-                <div className="char-card-bars">
-                  <div className="stat-bar stat-bar-hp">
-                    <div className="stat-bar-fill" style={{ width: `${hpPercent}%` }}></div>
-                    <span className="stat-bar-label">HP {char.hp}/{char.max_hp}</span>
-                  </div>
-                  <div className="stat-bar stat-bar-sp">
-                    <div className="stat-bar-fill" style={{ width: `${spPercent}%` }}></div>
-                    <span className="stat-bar-label">SP {char.sp}/{char.max_sp}</span>
+                  <div className="font-title text-lg font-bold text-gold bg-gold/10 px-3 py-1 rounded-full border border-gold/30 shadow-inner">
+                    Lv.{char.level}
                   </div>
                 </div>
 
-                <div className="char-card-stats">
-                  <div className="mini-stat"><span className="mini-stat-label">STR</span><span className="mini-stat-val">{char.str}</span></div>
-                  <div className="mini-stat"><span className="mini-stat-label">INT</span><span className="mini-stat-val">{char.intel}</span></div>
-                  <div className="mini-stat"><span className="mini-stat-label">DEX</span><span className="mini-stat-val">{char.dex}</span></div>
-                  <div className="mini-stat"><span className="mini-stat-label">VIT</span><span className="mini-stat-val">{char.vit}</span></div>
+                <div className="flex flex-col gap-3 mb-6 relative z-10">
+                  <div className="w-full bg-dark-bg h-4 rounded-full border border-dark-border overflow-hidden relative shadow-inner">
+                    <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-health to-red-400 transition-all duration-500 ease-out" style={{ width: `${hpPercent}%` }}></div>
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white tracking-widest drop-shadow-md">
+                      HP {char.hp}/{char.max_hp}
+                    </span>
+                  </div>
+                  <div className="w-full bg-dark-bg h-4 rounded-full border border-dark-border overflow-hidden relative shadow-inner">
+                    <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-mana to-blue-300 transition-all duration-500 ease-out" style={{ width: `${spPercent}%` }}></div>
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white tracking-widest drop-shadow-md">
+                      SP {char.sp}/{char.max_sp}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="char-card-info">
-                  <span>🗺️ Floor {char.current_floor}</span>
-                  <span>💀 {char.enemies_defeated || 0} kills</span>
-                  <span>💰 {char.gold} gold</span>
+                <div className="grid grid-cols-4 gap-2 mb-6 relative z-10">
+                  <div className="flex flex-col items-center p-2 bg-dark-bg/80 rounded border border-dark-border group-hover:border-gold/30 transition-colors">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">STR</span>
+                    <span className="font-title font-bold text-gray-200">{char.str}</span>
+                  </div>
+                  <div className="flex flex-col items-center p-2 bg-dark-bg/80 rounded border border-dark-border group-hover:border-gold/30 transition-colors">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">INT</span>
+                    <span className="font-title font-bold text-gray-200">{char.intel}</span>
+                  </div>
+                  <div className="flex flex-col items-center p-2 bg-dark-bg/80 rounded border border-dark-border group-hover:border-gold/30 transition-colors">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">DEX</span>
+                    <span className="font-title font-bold text-gray-200">{char.dex}</span>
+                  </div>
+                  <div className="flex flex-col items-center p-2 bg-dark-bg/80 rounded border border-dark-border group-hover:border-gold/30 transition-colors">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">VIT</span>
+                    <span className="font-title font-bold text-gray-200">{char.vit}</span>
+                  </div>
                 </div>
 
-                {isDead && <div className="char-dead-overlay"><span>💀 Fallen</span></div>}
+                <div className="flex justify-between text-xs text-gray-400 font-medium mb-6 px-1 relative z-10">
+                  <span className="flex items-center gap-1">🗺️ Floor {char.current_floor}</span>
+                  <span className="flex items-center gap-1">💀 {char.enemies_defeated || 0} kills</span>
+                  <span className="flex items-center gap-1 text-gold/80">💰 {char.gold} gold</span>
+                </div>
 
-                <div className="char-card-actions">
-                  <button className="btn btn-gold btn-sm" onClick={() => handleContinue(char)} id={`continue-${char.id}`}>
+                {isDead && (
+                  <div className="absolute top-4 right-4 bg-red-900/80 backdrop-blur text-red-200 text-xs font-bold px-3 py-1 rounded-full border border-red-500/50 shadow-glow-health z-20 animate-pulse-slow">
+                    💀 Fallen
+                  </div>
+                )}
+
+                <div className="flex gap-3 relative z-10">
+                  <button className="btn btn-gold flex-1 !text-xs !py-2" onClick={() => handleContinue(char)} id={`continue-${char.id}`}>
                     {isDead ? '📜 View Summary' : '⚔️ Continue'}
                   </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(char.id)} id={`delete-${char.id}`}>🗑️</button>
+                  <button className="btn btn-danger !px-4 !py-2" onClick={() => handleDelete(char.id)} id={`delete-${char.id}`} title="Delete Hero">
+                    🗑️
+                  </button>
                 </div>
               </div>
             );
