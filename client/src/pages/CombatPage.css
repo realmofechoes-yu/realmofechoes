@@ -33,7 +33,7 @@
 .coop-players-side .combatant-icon { font-size: 2rem; }
 .enemy-icon { filter: drop-shadow(0 0 10px rgba(196,75,47,0.4)); }
 .combatant-sprite { max-width: 64px; max-height: 64px; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,255,255,0.1)); margin: 0 auto; display: block; }
-.enemy-side .combatant-sprite { max-width: 80px; max-height: 80px; }
+.enemy-side .combatant-sprite { max-width: 160px; max-height: 160px; }
 .combatant-name { font-family: var(--font-heading); font-size: 1.25rem; margin-bottom: 4px; }
 .combatant-level { font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: var(--space-md); }
 .combatant-bars { display: flex; flex-direction: column; gap: var(--space-sm); }
