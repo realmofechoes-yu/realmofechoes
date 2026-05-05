@@ -4,6 +4,7 @@ import { useGame } from '../context/GameContext';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import { useSocketEvent, useSocketEmit } from '../hooks/useSocket';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 import { CLASS_INFO } from '../data/gameData';
 import TurnIndicator from '../components/Combat/TurnIndicator';
@@ -35,6 +36,7 @@ export default function CombatPage() {
   const [inventory, setInventory] = useState([]);
   const [showItems, setShowItems] = useState(false);
   const [currentTurnUserId, setCurrentTurnUserId] = useState(null);
+  const { playTrack } = useAudio();
   const logRef = useRef(null);
   const dmgIdRef = useRef(0);
 
@@ -80,6 +82,18 @@ export default function CombatPage() {
     syncCombat();
     loadConsumables();
   }, [connected, charId]);
+
+  const state = isCoop ? coopCombatState : combatState;
+  
+  useEffect(() => {
+    if (state) {
+      const enemyData = state.enemies ? state.enemies[0] : state.enemy;
+      if (enemyData) {
+        if (enemyData.isBoss) playTrack('decisive_battle.mp3');
+        else playTrack('prepare_battle.mp3');
+      }
+    }
+  }, [state, playTrack]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -239,7 +253,6 @@ export default function CombatPage() {
   if (isCoop && !coopCombatState) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Loading Combat...</p></div>;
   if (!isCoop && !combatState) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Loading Combat...</p></div>;
 
-  const state = isCoop ? coopCombatState : combatState;
   const enemy = state.enemies ? state.enemies[0] : state.enemy;
   const enemyHpPct = (enemy.hp / enemy.maxHp) * 100;
   

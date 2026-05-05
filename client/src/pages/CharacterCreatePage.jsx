@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 import { CLASS_INFO } from '../data/gameData';
 
@@ -10,7 +11,13 @@ export default function CharacterCreatePage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { setCurrentCharacter, setSkills } = useGame();
+  const { playTrack } = useAudio();
   const navigate = useNavigate();
+
+  import { useEffect } from 'react';
+  useEffect(() => {
+    playTrack('journey_begins.mp3');
+  }, [playTrack]);
 
   const handleCreate = async (e) => {
     e.preventDefault();

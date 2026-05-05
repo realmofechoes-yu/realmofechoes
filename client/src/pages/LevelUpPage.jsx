@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 import { STAT_LABELS, STAT_DESCRIPTIONS } from '../data/gameData';
 import './LevelUpPage.css';
@@ -13,10 +14,12 @@ export default function LevelUpPage() {
   const [allocation, setAllocation] = useState({ str: 0, intel: 0, dex: 0, vit: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { playTrack } = useAudio();
 
   useEffect(() => {
+    playTrack('minigame.mp3');
     loadCharacter();
-  }, [charId]);
+  }, [charId, playTrack]);
 
   const loadCharacter = async () => {
     try {

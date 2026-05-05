@@ -4,6 +4,7 @@ import { useGame } from '../context/GameContext';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import { useSocketEvent, useSocketEmit } from '../hooks/useSocket';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 import { ROOM_ICONS, ROOM_LABELS } from '../data/gameData';
 import PartyPanel from '../components/Party/PartyPanel';
@@ -31,15 +32,17 @@ export default function DungeonPage() {
   const [eventModal, setEventModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [moving, setMoving] = useState(false);
+  const { playTrack } = useAudio();
 
   const queryParams = new URLSearchParams(location.search);
   const isCoop = !!coopSessionId || !!queryParams.get('coop');
 
   useEffect(() => {
+    playTrack('mysterious_dungeon.mp3');
     if (queryParams.get('coop')) {
       setCoopSessionId(queryParams.get('coop'));
     }
-  }, [location.search]);
+  }, [location.search, playTrack]);
 
   useEffect(() => {
     if (isCoop) {

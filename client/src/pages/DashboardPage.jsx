@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 import { CLASS_INFO } from '../data/gameData';
 
@@ -10,9 +11,11 @@ export default function DashboardPage() {
   const { setCurrentCharacter, clearGameState } = useGame();
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { playTrack } = useAudio();
   const navigate = useNavigate();
 
   useEffect(() => {
+    playTrack('journey_begins.mp3');
     clearGameState();
     loadCharacters();
     refreshProfile();

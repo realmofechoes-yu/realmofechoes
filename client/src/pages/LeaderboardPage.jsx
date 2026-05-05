@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { playTrack } = useAudio();
 
   useEffect(() => {
+    playTrack('final_fantasy.mp3');
     loadLeaderboard();
-  }, []);
+  }, [playTrack]);
 
   const loadLeaderboard = async () => {
     try {

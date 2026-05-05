@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 import { RARITY_LABELS } from '../data/gameData';
 
@@ -13,8 +14,12 @@ export default function InventoryPage() {
   const [sort, setSort] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
+  const { playTrack } = useAudio();
 
-  useEffect(() => { loadInventory(); }, [charId, filter, sort]);
+  useEffect(() => { 
+    playTrack('minigame.mp3');
+    loadInventory(); 
+  }, [charId, filter, sort, playTrack]);
 
   const loadInventory = async () => {
     try {

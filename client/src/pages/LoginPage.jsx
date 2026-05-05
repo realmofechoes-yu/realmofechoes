@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
+import { useAudio } from '../context/AudioContext';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -10,7 +11,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { reconnect } = useSocketContext();
+  const { playTrack } = useAudio();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    playTrack('title.mp3');
+  }, [playTrack]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

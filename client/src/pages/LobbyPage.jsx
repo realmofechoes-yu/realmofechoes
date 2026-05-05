@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import { useSocketEvent, useSocketEmit } from '../hooks/useSocket';
 import { useGame } from '../context/GameContext';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 import { CLASS_INFO } from '../data/gameData';
 
@@ -13,6 +14,7 @@ export default function LobbyPage() {
   const { socket, connected } = useSocketContext();
   const { emit, emitNoAck } = useSocketEmit();
   const { setCurrentCharacter } = useGame();
+  const { playTrack } = useAudio();
 
   const [mode, setMode] = useState('menu'); // menu, creating, joining, inLobby
   const [joinCode, setJoinCode] = useState('');
@@ -26,8 +28,9 @@ export default function LobbyPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    playTrack('journey_begins.mp3');
     loadCharacters();
-  }, []);
+  }, [playTrack]);
 
   const loadCharacters = async () => {
     try {

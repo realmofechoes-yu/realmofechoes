@@ -1,11 +1,13 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useGame } from '../../context/GameContext';
+import { useAudio } from '../../context/AudioContext';
 import { useState } from 'react';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const { currentCharacter, clearGameState } = useGame();
+  const { isMuted, toggleMute } = useAudio();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -42,6 +44,13 @@ export default function AppLayout() {
             </div>
           )}
           <div className="flex items-center gap-4">
+            <button 
+              onClick={toggleMute} 
+              className="text-xl opacity-70 hover:opacity-100 transition-opacity"
+              title={isMuted ? "Unmute Sound" : "Mute Sound"}
+            >
+              {isMuted ? '🔇' : '🔊'}
+            </button>
             <span className="text-sm text-gray-400 hidden sm:inline-block">⚜️ {user?.username}</span>
             <button className="btn btn-ghost !py-1.5 !px-4 !text-xs" onClick={handleLogout} id="logout-btn">
               Logout

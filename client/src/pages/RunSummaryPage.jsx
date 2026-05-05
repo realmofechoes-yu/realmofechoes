@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
+import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
 import { CLASS_INFO } from '../data/gameData';
 import './RunSummaryPage.css';
@@ -12,10 +13,12 @@ export default function RunSummaryPage() {
   const [char, setChar] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { playTrack } = useAudio();
 
   useEffect(() => {
+    playTrack('rest.mp3');
     loadData();
-  }, [charId]);
+  }, [charId, playTrack]);
 
   const loadData = async () => {
     try {
