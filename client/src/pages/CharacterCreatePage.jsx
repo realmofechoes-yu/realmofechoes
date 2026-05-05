@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import { useAudio } from '../context/AudioContext';
@@ -14,7 +14,6 @@ export default function CharacterCreatePage() {
   const { playTrack } = useAudio();
   const navigate = useNavigate();
 
-  import { useEffect } from 'react';
   useEffect(() => {
     playTrack('journey_begins.mp3');
   }, [playTrack]);
