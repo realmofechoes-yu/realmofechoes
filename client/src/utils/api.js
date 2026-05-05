@@ -19,8 +19,8 @@ export const api = {
   getProfile: () => request('/auth/profile'),
 
   // Characters
-  createCharacter: (name, characterClass) => request('/characters', { method: 'POST', body: JSON.stringify({ name, characterClass }) }),
-  getCharacters: () => request('/characters'),
+  createCharacter: (name, characterClass, mode = 'singleplayer') => request('/characters', { method: 'POST', body: JSON.stringify({ name, characterClass, mode }) }),
+  getCharacters: (mode) => request(`/characters${mode ? `?mode=${mode}` : ''}`),
   getCharacter: (id) => request(`/characters/${id}`),
   updateCharacter: (id, stats) => request(`/characters/${id}`, { method: 'PUT', body: JSON.stringify(stats) }),
   deleteCharacter: (id) => request(`/characters/${id}`, { method: 'DELETE' }),

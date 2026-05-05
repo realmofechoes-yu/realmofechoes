@@ -199,6 +199,9 @@ function registerGameHandlers(io, socket) {
       if (!session) return callback({ success: false, error: 'Session not found.' });
 
       const lobby = getActiveLobbies().get(session.lobbyId);
+      const { coopCombatStates, sanitizeCoopState } = require('./combat-handlers');
+      const rawCombatState = coopCombatStates.get(sessionId);
+      const combatState = rawCombatState ? sanitizeCoopState(rawCombatState) : null;
       const floor = getFloorTemplate(session.currentFloor);
       const chars = [];
       if (lobby) {
@@ -212,7 +215,9 @@ function registerGameHandlers(io, socket) {
       callback({
         success: true,
         session: { id: session.id, currentFloor: session.currentFloor, currentRoom: session.currentRoom },
-        floor, characters: chars, players: lobby?.players || []
+        floor, characters: chars, players: lobby?.players || [],
+        isCombatActive: !!combatState,
+        combatState: combatState ? combatState : null
       });
     } catch (err) {
       console.error('Session sync error:', err);

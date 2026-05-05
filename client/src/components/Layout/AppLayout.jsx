@@ -2,14 +2,42 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useGame } from '../../context/GameContext';
 import { useAudio } from '../../context/AudioContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSocketContext } from '../../context/SocketContext';
+import { useSocketEmit } from '../../hooks/useSocket';
+import ActiveSessionBanner from './ActiveSessionBanner';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
-  const { currentCharacter, clearGameState } = useGame();
+  const { 
+    currentCharacter, clearGameState, 
+    coopSessionId, coopCharacterId, 
+    lastSingleplayerCharId, lastMode,
+    abandonSession
+  } = useGame();
+  const { connected } = useSocketContext();
+  const { emit } = useSocketEmit();
   const { isMuted, toggleMute } = useAudio();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Validate co-op session on mount/connect
+  useEffect(() => {
+    if (connected && coopSessionId) {
+      console.log('Validating session:', coopSessionId);
+      emit('session:sync', { sessionId: coopSessionId })
+        .then(() => {
+          console.log('Session is valid.');
+        })
+        .catch((err) => {
+          // If the server explicitly says it's not found, we clear it
+          if (err.message.includes('not found') || err.message.includes('No session')) {
+            console.log('Stale session detected, clearing:', err.message);
+            abandonSession();
+          }
+        });
+    }
+  }, [connected, coopSessionId, abandonSession, emit]);
 
   const handleLogout = () => {
     clearGameState();
@@ -67,18 +95,28 @@ export default function AppLayout() {
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}>
           <div className="flex flex-col gap-1 px-3">
-            <NavLink to="/dashboard" className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${isActive ? 'bg-gold/10 text-gold border-l-4 border-gold shadow-[inset_4px_0_0_0_rgba(255,183,3,1)]' : 'text-gray-400 hover:text-white hover:bg-dark-hover border-l-4 border-transparent'}`} onClick={() => setSidebarOpen(false)} id="nav-dashboard">
+            <NavLink to={coopSessionId ? `/dashboard/multiplayer` : `/dashboard/${lastMode}`} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${isActive ? 'bg-gold/10 text-gold border-l-4 border-gold shadow-[inset_4px_0_0_0_rgba(255,183,3,1)]' : 'text-gray-400 hover:text-white hover:bg-dark-hover border-l-4 border-transparent'}`} onClick={() => setSidebarOpen(false)} id="nav-dashboard">
               <span className="text-xl w-6 text-center">🏰</span><span>Dashboard</span>
             </NavLink>
-            <NavLink to="/create" className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${isActive ? 'bg-gold/10 text-gold border-l-4 border-gold shadow-[inset_4px_0_0_0_rgba(255,183,3,1)]' : 'text-gray-400 hover:text-white hover:bg-dark-hover border-l-4 border-transparent'}`} onClick={() => setSidebarOpen(false)} id="nav-create">
+            <NavLink to={coopSessionId ? `/create/multiplayer` : `/create/${lastMode}`} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${isActive ? 'bg-gold/10 text-gold border-l-4 border-gold shadow-[inset_4px_0_0_0_rgba(255,183,3,1)]' : 'text-gray-400 hover:text-white hover:bg-dark-hover border-l-4 border-transparent'}`} onClick={() => setSidebarOpen(false)} id="nav-create">
               <span className="text-xl w-6 text-center">✨</span><span>New Hero</span>
             </NavLink>
-            {currentCharacter && (
+            {(currentCharacter || coopCharacterId || lastSingleplayerCharId) && (
               <>
-                <NavLink to={`/dungeon/${currentCharacter.id}`} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${isActive ? 'bg-gold/10 text-gold border-l-4 border-gold shadow-[inset_4px_0_0_0_rgba(255,183,3,1)]' : 'text-gray-400 hover:text-white hover:bg-dark-hover border-l-4 border-transparent'}`} onClick={() => setSidebarOpen(false)} id="nav-dungeon">
+                <NavLink 
+                  to={coopSessionId ? `/multiplayer/dungeon/${coopCharacterId}/${coopSessionId}` : `/singleplayer/dungeon/${currentCharacter?.id || lastSingleplayerCharId}`} 
+                  className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${isActive ? 'bg-gold/10 text-gold border-l-4 border-gold shadow-[inset_4px_0_0_0_rgba(255,183,3,1)]' : 'text-gray-400 hover:text-white hover:bg-dark-hover border-l-4 border-transparent'}`} 
+                  onClick={() => setSidebarOpen(false)} 
+                  id="nav-dungeon"
+                >
                   <span className="text-xl w-6 text-center">🗺️</span><span>Dungeon</span>
                 </NavLink>
-                <NavLink to={`/inventory/${currentCharacter.id}`} className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${isActive ? 'bg-gold/10 text-gold border-l-4 border-gold shadow-[inset_4px_0_0_0_rgba(255,183,3,1)]' : 'text-gray-400 hover:text-white hover:bg-dark-hover border-l-4 border-transparent'}`} onClick={() => setSidebarOpen(false)} id="nav-inventory">
+                <NavLink 
+                  to={coopSessionId ? `/multiplayer/inventory/${coopCharacterId}/${coopSessionId}` : `/singleplayer/inventory/${currentCharacter?.id || lastSingleplayerCharId}`} 
+                  className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${isActive ? 'bg-gold/10 text-gold border-l-4 border-gold shadow-[inset_4px_0_0_0_rgba(255,183,3,1)]' : 'text-gray-400 hover:text-white hover:bg-dark-hover border-l-4 border-transparent'}`} 
+                  onClick={() => setSidebarOpen(false)} 
+                  id="nav-inventory"
+                >
                   <span className="text-xl w-6 text-center">🎒</span><span>Inventory</span>
                 </NavLink>
               </>
@@ -113,6 +151,7 @@ export default function AppLayout() {
 
         {/* Main Content */}
         <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 overflow-x-hidden">
+          <ActiveSessionBanner />
           <Outlet />
         </main>
       </div>

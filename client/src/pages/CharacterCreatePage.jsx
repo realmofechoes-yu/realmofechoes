@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import { useAudio } from '../context/AudioContext';
 import api from '../utils/api';
@@ -13,6 +13,12 @@ export default function CharacterCreatePage() {
   const { setCurrentCharacter, setSkills } = useGame();
   const { playTrack } = useAudio();
   const navigate = useNavigate();
+  const { mode } = useParams();
+
+  // If the mode is invalid, redirect back to mode select
+  if (mode !== 'singleplayer' && mode !== 'multiplayer') {
+    return <Navigate to="/select-mode" replace />;
+  }
 
   useEffect(() => {
     playTrack('journey_begins.mp3');
@@ -25,10 +31,15 @@ export default function CharacterCreatePage() {
     setError('');
     setLoading(true);
     try {
-      const data = await api.createCharacter(name.trim(), selectedClass);
+      const data = await api.createCharacter(name.trim(), selectedClass, mode);
       setCurrentCharacter(data.character);
       setSkills(data.skills);
-      navigate(`/dungeon/${data.character.id}`);
+      
+      if (mode === 'multiplayer') {
+        navigate(`/dashboard/multiplayer`);
+      } else {
+        navigate(`/singleplayer/dungeon/${data.character.id}`);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,8 +50,13 @@ export default function CharacterCreatePage() {
   return (
     <div className="max-w-6xl mx-auto animate-fade-in pb-12">
       <div className="text-center mb-10">
+        <div className="mb-4 text-left">
+          <button className="btn btn-ghost !px-4 !py-2 text-sm" onClick={() => navigate(`/dashboard/${mode}`)}>
+            ⬅️ Back to {mode === 'multiplayer' ? 'Multiplayer' : 'Singleplayer'} Dashboard
+          </button>
+        </div>
         <h2 className="text-3xl font-title font-bold text-gold drop-shadow-md mb-2 flex items-center justify-center gap-3">
-          <span className="text-4xl">✨</span> Forge a New Hero
+          <span className="text-4xl">✨</span> Forge a New {mode === 'multiplayer' ? 'Multiplayer' : 'Singleplayer'} Hero
         </h2>
         <p className="text-gray-400 font-serif italic">Choose your class and name your champion.</p>
       </div>

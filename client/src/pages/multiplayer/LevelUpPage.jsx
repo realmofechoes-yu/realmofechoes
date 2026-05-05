@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGame } from '../context/GameContext';
-import { useAudio } from '../context/AudioContext';
-import api from '../utils/api';
-import { STAT_LABELS, STAT_DESCRIPTIONS } from '../data/gameData';
-import './LevelUpPage.css';
+import { useGame } from '../../context/GameContext';
+import { useAudio } from '../../context/AudioContext';
+import api from '../../utils/api';
+import { STAT_LABELS, STAT_DESCRIPTIONS } from '../../data/gameData';
+import '../../pages/LevelUpPage.css';
 
 export default function LevelUpPage() {
-  const { charId } = useParams();
+  const { charId, sessionId } = useParams();
   const navigate = useNavigate();
   const { currentCharacter, setCurrentCharacter } = useGame();
   const [char, setChar] = useState(null);
@@ -47,7 +47,7 @@ export default function LevelUpPage() {
     try {
       const updated = await api.updateCharacter(parseInt(charId), allocation);
       setCurrentCharacter(updated);
-      navigate(`/dungeon/${charId}`);
+      navigate(`/multiplayer/dungeon/${charId}/${sessionId}`);
     } catch (err) { console.error(err); }
     finally { setSaving(false); }
   };
@@ -58,7 +58,7 @@ export default function LevelUpPage() {
       <div className="levelup-page animate-fade-in text-center">
         <h2 className="page-title">📊 Stats</h2>
         <p className="text-dim mt-lg">No stat points available.</p>
-        <button className="btn btn-ghost mt-lg" onClick={() => navigate(`/dungeon/${charId}`)}>Back to Dungeon</button>
+        <button className="btn btn-ghost mt-lg" onClick={() => navigate(`/multiplayer/dungeon/${charId}/${sessionId}`)}>Back to Dungeon</button>
       </div>
     );
   }
@@ -104,7 +104,7 @@ export default function LevelUpPage() {
         <button className="btn btn-gold btn-lg" onClick={handleConfirm} disabled={totalSpent === 0 || saving} id="confirm-stats">
           {saving ? 'Saving...' : '✓ Confirm Allocation'}
         </button>
-        <button className="btn btn-ghost btn-lg" onClick={() => navigate(`/dungeon/${charId}`)}>Skip</button>
+        <button className="btn btn-ghost btn-lg" onClick={() => navigate(`/multiplayer/dungeon/${charId}/${sessionId}`)}>Skip</button>
       </div>
     </div>
   );

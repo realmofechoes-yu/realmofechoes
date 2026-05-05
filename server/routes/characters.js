@@ -15,14 +15,15 @@ const CLASS_DEFAULTS = {
 // POST /api/characters - Create new character
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { name, characterClass } = req.body;
+    const { name, characterClass, mode } = req.body;
     if (!name || !characterClass) return res.status(400).json({ error: 'Name and class are required.' });
     if (!CLASS_DEFAULTS[characterClass]) return res.status(400).json({ error: 'Invalid class. Choose warrior, mage, or ranger.' });
 
+    const charMode = mode === 'multiplayer' ? 'multiplayer' : 'singleplayer';
     const defaults = CLASS_DEFAULTS[characterClass];
     const result = await getOne(
-      `INSERT INTO characters (user_id, name, class, hp, max_hp, sp, max_sp, str, intel, dex, vit, current_room) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, -1) RETURNING id`,
-      [req.user.id, name, characterClass, defaults.hp, defaults.max_hp, defaults.sp, defaults.max_sp, defaults.str, defaults.intel, defaults.dex, defaults.vit]
+      `INSERT INTO characters (user_id, name, class, hp, max_hp, sp, max_sp, str, intel, dex, vit, current_room, mode) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, -1, $12) RETURNING id`,
+      [req.user.id, name, characterClass, defaults.hp, defaults.max_hp, defaults.sp, defaults.max_sp, defaults.str, defaults.intel, defaults.dex, defaults.vit, charMode]
     );
 
     const charId = result.id;
@@ -48,7 +49,17 @@ router.post('/', authMiddleware, async (req, res) => {
 // GET /api/characters - List all characters for user
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const characters = await getAll('SELECT * FROM characters WHERE user_id = $1 ORDER BY updated_at DESC', [req.user.id]);
+    const { mode } = req.query;
+    let query = 'SELECT * FROM characters WHERE user_id = $1';
+    const params = [req.user.id];
+
+    if (mode === 'singleplayer' || mode === 'multiplayer') {
+      query += ' AND mode = $2';
+      params.push(mode);
+    }
+
+    query += ' ORDER BY updated_at DESC';
+    const characters = await getAll(query, params);
     res.json(characters);
   } catch (err) {
     console.error('List characters error:', err);

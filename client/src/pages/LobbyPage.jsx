@@ -13,7 +13,7 @@ export default function LobbyPage() {
   const { user } = useAuth();
   const { socket, connected } = useSocketContext();
   const { emit, emitNoAck } = useSocketEmit();
-  const { setCurrentCharacter } = useGame();
+  const { setCurrentCharacter, setCoopSessionId, setCoopCharacterId } = useGame();
   const { playTrack } = useAudio();
 
   const [mode, setMode] = useState('menu'); // menu, creating, joining, inLobby
@@ -34,7 +34,7 @@ export default function LobbyPage() {
 
   const loadCharacters = async () => {
     try {
-      const chars = await api.getCharacters();
+      const chars = await api.getCharacters('multiplayer');
       setCharacters(chars.filter(c => c.is_alive));
     } catch (e) { console.error(e); }
   };
@@ -58,6 +58,7 @@ export default function LobbyPage() {
     setLobby(prev => prev ? { ...prev, players: data.players } : prev);
   }, []);
 
+
   const handleGameStarted = useCallback((data) => {
     // Notify server to register session
     emitNoAck('game:session_created', { sessionId: data.sessionId, lobbyId: data.lobbyId });
@@ -65,10 +66,12 @@ export default function LobbyPage() {
     // Navigate to co-op dungeon
     const myPlayer = data.players.find(p => p.userId === user.id);
     if (myPlayer?.characterId) {
+      setCoopSessionId(data.sessionId);
+      setCoopCharacterId(myPlayer.characterId);
       setCurrentCharacter(null); // Will be loaded by dungeon page
-      navigate(`/dungeon/${myPlayer.characterId}?coop=${data.sessionId}`);
+      navigate(`/multiplayer/dungeon/${myPlayer.characterId}/${data.sessionId}`);
     }
-  }, [user, navigate, emitNoAck, setCurrentCharacter]);
+  }, [user, navigate, emitNoAck, setCurrentCharacter, setCoopSessionId, setCoopCharacterId]);
 
   const handleChatMessage = useCallback((data) => {
     setChatMessages(prev => [...prev.slice(-49), data]);

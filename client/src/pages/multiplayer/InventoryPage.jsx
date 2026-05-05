@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGame } from '../context/GameContext';
-import { useAudio } from '../context/AudioContext';
-import api from '../utils/api';
-import { RARITY_LABELS } from '../data/gameData';
+import { useGame } from '../../context/GameContext';
+import { useAudio } from '../../context/AudioContext';
+import api from '../../utils/api';
+import { RARITY_LABELS } from '../../data/gameData';
 
 export default function InventoryPage() {
-  const { charId } = useParams();
+  const { charId, sessionId } = useParams();
   const navigate = useNavigate();
   const { currentCharacter, setCurrentCharacter } = useGame();
   const [items, setItems] = useState([]);
@@ -85,8 +85,8 @@ export default function InventoryPage() {
 
   if (loading) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Rummaging through your bags...</p></div>;
 
-  const { combatState, coopCombatState, coopSessionId } = useGame();
-  const isInCombat = !!combatState || !!coopCombatState;
+  const { coopCombatState } = useGame();
+  const isInCombat = !!coopCombatState;
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-8 animate-fade-in">
@@ -96,7 +96,7 @@ export default function InventoryPage() {
         </h2>
         <button 
           className="btn btn-ghost border border-dark-border/50 px-6 py-2" 
-          onClick={() => navigate(isInCombat ? `/combat/${charId}${coopSessionId ? `?coop=${coopSessionId}` : ''}` : `/dungeon/${charId}${coopSessionId ? `?coop=${coopSessionId}` : ''}`)}
+          onClick={() => navigate(isInCombat ? `/multiplayer/combat/${charId}/${sessionId}` : `/multiplayer/dungeon/${charId}/${sessionId}`)}
         >
           {isInCombat ? '⚔️ Return to Fight' : '⬅️ Return to Dungeon'}
         </button>

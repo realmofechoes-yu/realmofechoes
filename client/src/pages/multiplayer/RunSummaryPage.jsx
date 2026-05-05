@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGame } from '../context/GameContext';
-import { useAudio } from '../context/AudioContext';
-import api from '../utils/api';
-import { CLASS_INFO } from '../data/gameData';
-import './RunSummaryPage.css';
+import { useGame } from '../../context/GameContext';
+import { useAudio } from '../../context/AudioContext';
+import api from '../../utils/api';
+import { CLASS_INFO } from '../../data/gameData';
+import '../../pages/RunSummaryPage.css';
 
 export default function RunSummaryPage() {
-  const { charId } = useParams();
+  const { charId, sessionId } = useParams();
   const navigate = useNavigate();
-  const { currentCharacter, clearGameState } = useGame();
+  const { currentCharacter, clearGameState, setCoopSessionId, setCoopCharacterId } = useGame();
   const [char, setChar] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,10 @@ export default function RunSummaryPage() {
   useEffect(() => {
     playTrack('rest.mp3');
     loadData();
-  }, [charId, playTrack]);
+    // Clear active co-op session as the run is over
+    setCoopSessionId(null);
+    setCoopCharacterId(null);
+  }, [charId, playTrack, setCoopSessionId, setCoopCharacterId]);
 
   const loadData = async () => {
     try {
@@ -31,7 +34,7 @@ export default function RunSummaryPage() {
 
   const handleNewRun = () => {
     clearGameState();
-    navigate('/create');
+    navigate('/create/multiplayer');
   };
 
   if (loading) return <div className="loader-container"><div className="loader"></div></div>;
@@ -120,7 +123,7 @@ export default function RunSummaryPage() {
 
       <div className="summary-actions">
         <button className="btn btn-gold btn-lg" onClick={handleNewRun} id="new-run-btn">✨ Start New Run</button>
-        <button className="btn btn-ghost btn-lg" onClick={() => navigate('/dashboard')} id="back-dashboard-btn">🏰 Dashboard</button>
+        <button className="btn btn-ghost btn-lg" onClick={() => navigate('/dashboard/multiplayer')} id="back-dashboard-btn">🏰 Dashboard</button>
         <button className="btn btn-ghost btn-lg" onClick={() => navigate('/leaderboard')}>🏆 Leaderboard</button>
       </div>
     </div>

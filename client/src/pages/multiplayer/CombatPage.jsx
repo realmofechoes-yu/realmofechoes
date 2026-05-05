@@ -1,29 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useGame } from '../context/GameContext';
-import { useAuth } from '../context/AuthContext';
-import { useSocketContext } from '../context/SocketContext';
-import { useSocketEvent, useSocketEmit } from '../hooks/useSocket';
-import { useAudio } from '../context/AudioContext';
-import api from '../utils/api';
-import { CLASS_INFO } from '../data/gameData';
-import TurnIndicator from '../components/Combat/TurnIndicator';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useGame } from '../../context/GameContext';
+import { useAuth } from '../../context/AuthContext';
+import { useSocketContext } from '../../context/SocketContext';
+import { useSocketEvent, useSocketEmit } from '../../hooks/useSocket';
+import { useAudio } from '../../context/AudioContext';
+import { CLASS_INFO } from '../../data/gameData';
+import TurnIndicator from '../../components/Combat/TurnIndicator';
+import api from '../../utils/api'; // Only for loadConsumables
 
 export default function CombatPage() {
-  const { charId } = useParams();
+  const { charId, sessionId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { user } = useAuth();
   
   const { 
-    combatState, setCombatState, 
-    currentCharacter, setCurrentCharacter, 
-    skills,
-    coopSessionId, setCoopSessionId,
-    coopCombatState, setCoopCombatState
+    coopCombatState, setCoopCombatState,
+    setCoopSessionId, setCoopCharacterId,
+    isHost
   } = useGame();
 
-  const { socket, connected } = useSocketContext();
+  const { connected } = useSocketContext();
   const { emit, emitNoAck } = useSocketEmit();
 
   const [turnLog, setTurnLog] = useState([]);
@@ -40,40 +37,22 @@ export default function CombatPage() {
   const logRef = useRef(null);
   const dmgIdRef = useRef(0);
 
-  const queryParams = new URLSearchParams(location.search);
-  const isCoop = !!coopSessionId || !!queryParams.get('coop');
-
-  useEffect(() => {
-    if (queryParams.get('coop')) {
-      setCoopSessionId(queryParams.get('coop'));
-    }
-  }, [location.search]);
-
   useEffect(() => {
     const syncCombat = async () => {
-      if (isCoop) {
+      if (connected && sessionId) {
+        setCoopSessionId(sessionId);
+        setCoopCharacterId(charId);
+        
         if (!coopCombatState) {
-          const sid = coopSessionId || queryParams.get('coop');
-          if (sid && connected) {
-            try {
-              const res = await emit('combat:sync', { sessionId: sid });
-              if (res.success) {
-                setCoopCombatState(res.combatState);
-              } else {
-                navigate(`/dungeon/${charId}?coop=${sid}`);
-              }
-            } catch (err) {
-              navigate(`/dungeon/${charId}?coop=${sid}`);
-            }
-          }
-        }
-      } else {
-        if (!combatState) {
           try {
-            const data = await api.getActiveCombat(charId);
-            setCombatState(data.combatState);
+            const res = await emit('combat:sync', { sessionId });
+            if (res.success) {
+              setCoopCombatState(res.combatState);
+            } else {
+              navigate(`/multiplayer/dungeon/${charId}/${sessionId}`);
+            }
           } catch (err) {
-            navigate(`/dungeon/${charId}`);
+            navigate(`/multiplayer/dungeon/${charId}/${sessionId}`);
           }
         }
       }
@@ -81,9 +60,9 @@ export default function CombatPage() {
 
     syncCombat();
     loadConsumables();
-  }, [connected, charId]);
+  }, [connected, charId, sessionId]);
 
-  const state = isCoop ? coopCombatState : combatState;
+  const state = coopCombatState;
   
   useEffect(() => {
     if (state) {
@@ -123,8 +102,6 @@ export default function CombatPage() {
     setTimeout(() => setPlayerShakes(prev => ({ ...prev, [userId]: false })), 500);
   };
 
-  // --- CO-OP SOCKET LOGIC ---
-
   useSocketEvent('combat:turn_result', (data) => {
     setCoopCombatState(data.combatState);
     setTurnLog(data.turnLog);
@@ -141,9 +118,6 @@ export default function CombatPage() {
         if (targetPlayer) {
           shakePlayer(targetPlayer.userId);
           showDamage(evt.amount, 'damage', 'player', targetPlayer.userId);
-        } else if (!isCoop) {
-          shakePlayer('me');
-          showDamage(evt.amount, 'damage', 'player', 'me');
         }
       }
       if (evt.type === 'use_item' || evt.type === 'enemy_heal') {
@@ -173,101 +147,60 @@ export default function CombatPage() {
     setResult({ victory: false, echoReward: data.echoReward });
   });
 
+  // Robust dismissal check for clients
+  useEffect(() => {
+    if (result && !isHost) {
+      const interval = setInterval(async () => {
+        try {
+          const res = await emit('combat:sync', { sessionId });
+          if (!res.success) {
+            // Combat state is gone, host must have dismissed
+            setCoopCombatState(null);
+            navigate(`/multiplayer/dungeon/${charId}/${sessionId}`);
+          }
+        } catch (e) {
+          // If sync fails completely, assume we should be in dungeon
+          navigate(`/multiplayer/dungeon/${charId}/${sessionId}`);
+        }
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [result, isHost, sessionId, charId]);
+
   useSocketEvent('combat:result_dismissed', () => {
     setCoopCombatState(null);
-    navigate(`/dungeon/${charId}?coop=${coopSessionId || queryParams.get('coop')}`);
+    navigate(`/multiplayer/dungeon/${charId}/${sessionId}`);
   });
-
-  // --- UNIFIED ACTION PROCESSING ---
 
   const processAction = async (action, skillKey = null, itemId = null) => {
     if (actionLoading || result) return;
     setActionLoading(true);
     setShowItems(false);
 
-    if (isCoop) {
-      try {
-        const sessionId = coopSessionId || queryParams.get('coop');
-        await emit('combat:action', { sessionId, action, skillKey, itemId });
-      } catch (err) {
-        console.error(err);
-        setAllLogs(prev => [...prev, { type: 'error', message: err.message }]);
-        setActionLoading(false);
-      }
-    } else {
-      try {
-        const data = await api.combatAction(parseInt(charId), action, skillKey, itemId);
-        setCombatState(data.combatState);
-        setTurnLog(data.turnLog);
-        setAllLogs(prev => [...prev, ...data.turnLog]);
-
-        for (const evt of data.turnLog) {
-          if (evt.type === 'player_attack' || evt.type === 'player_skill') {
-            setEnemyShake(true);
-            showDamage(evt.amount, evt.isCrit ? 'crit' : 'damage', 'enemy');
-            setTimeout(() => setEnemyShake(false), 500);
-          }
-          if (evt.type === 'enemy_damage' || evt.type === 'enemy_attack') {
-            shakePlayer('me');
-            showDamage(evt.amount, 'damage', 'player', 'me');
-          }
-          if (evt.type === 'use_item' || evt.type === 'enemy_heal') {
-            showDamage(evt.amount || '✓', 'heal', evt.type === 'enemy_heal' ? 'enemy' : 'player');
-          }
-        }
-
-        if (!data.ongoing) {
-          setResult(data);
-          if (data.character) setCurrentCharacter(data.character);
-          loadConsumables();
-        }
-      } catch (err) {
-        setAllLogs(prev => [...prev, { type: 'error', message: err.message }]);
-      } finally {
-        setActionLoading(false);
-      }
+    try {
+      await emit('combat:action', { sessionId, action, skillKey, itemId });
+    } catch (err) {
+      console.error(err);
+      setAllLogs(prev => [...prev, { type: 'error', message: err.message }]);
+      setActionLoading(false);
     }
   };
 
-  const handleFlee = async () => {
-    if (actionLoading || result || isCoop) return;
-    setActionLoading(true);
-    try {
-      const data = await api.flee(parseInt(charId));
-      if (data.fled) {
-        setAllLogs(prev => [...prev, { type: 'flee', message: 'You escaped!' }]);
-        setTimeout(() => {
-          setCombatState(null);
-          navigate(`/dungeon/${charId}`);
-        }, 1500);
-      } else {
-        setCombatState(data.combatState);
-        setTurnLog(data.turnLog);
-        setAllLogs(prev => [...prev, ...data.turnLog]);
-        if (data.death) setResult(data);
-      }
-    } catch (err) { console.error(err); }
-    finally { setActionLoading(false); }
-  };
-
-  if (isCoop && !coopCombatState) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Loading Combat...</p></div>;
-  if (!isCoop && !combatState) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Loading Combat...</p></div>;
+  if (!state) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Loading Combat...</p></div>;
 
   const enemy = state.enemies ? state.enemies[0] : state.enemy;
   const enemyHpPct = (enemy.hp / enemy.maxHp) * 100;
   
-  const myPlayerState = isCoop 
-    ? state.players.find(p => p.userId === user.id) 
-    : { ...state.player, isAlive: state.player.hp > 0, userId: user.id };
+  const myPlayerState = state.players.find(p => p.userId === user.id);
 
   let activeTurnUserId = currentTurnUserId;
-  if (isCoop && state && !currentTurnUserId) {
+  if (state && !currentTurnUserId) {
     const turn = state.turnQueue[state.currentTurnIndex];
     if (turn?.type === 'player') activeTurnUserId = turn.userId;
   }
 
-  const isMyTurn = isCoop ? activeTurnUserId === user.id : true;
-  const activeUsername = isCoop ? state.players.find(p => p.userId === activeTurnUserId)?.username : myPlayerState?.name;
+  const isMyTurn = activeTurnUserId === user.id;
+  const activeUsername = state.players.find(p => p.userId === activeTurnUserId)?.username;
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
@@ -276,70 +209,46 @@ export default function CombatPage() {
         {enemy.isBoss && <span className="font-title font-bold text-sm text-red-500 bg-red-900/20 px-3 py-1 rounded-full border border-red-500/40 animate-pulse">👹 BOSS</span>}
       </div>
 
-      {isCoop && activeTurnUserId && !result && (
+      {activeTurnUserId && !result && (
         <div className="mb-8">
-          <TurnIndicator isMyTurn={isMyTurn} activeUsername={activeUsername} timeLimit={30} />
+          <TurnIndicator 
+            isMyTurn={isMyTurn} 
+            activeUsername={activeUsername || 'Enemy'} 
+            timeLimit={30}
+            turnStartedAt={state.turnStartedAt}
+          />
         </div>
       )}
 
       <div className="relative flex flex-col md:flex-row gap-8 items-center justify-between mb-12 min-h-[300px]">
         {/* Player Side */}
         <div className="flex-1 w-full flex flex-wrap gap-4 justify-center">
-          {isCoop ? (
-            state.players.map((p, index) => {
-              const ci = CLASS_INFO[p.class];
-              const hpPct = (p.hp / p.maxHp) * 100;
-              const spPct = (p.sp / p.maxSp) * 100;
-              const isTurn = p.userId === activeTurnUserId;
-              const isDead = !p.isAlive;
-              const shake = playerShakes[p.userId];
+          {state.players.map((p, index) => {
+            const ci = CLASS_INFO[p.class];
+            const hpPct = (p.hp / p.maxHp) * 100;
+            const spPct = (p.sp / p.maxSp) * 100;
+            const isTurn = p.userId === activeTurnUserId;
+            const isDead = !p.isAlive;
+            const shake = playerShakes[p.userId];
 
-              return (
-                <div key={p.userId} className={`panel bg-dark-surface/80 min-w-[140px] flex-1 text-center transition-all duration-300 ${shake ? 'animate-shake' : ''} ${isTurn ? 'border-gold shadow-glow-gold' : 'border-dark-border'} ${isDead ? 'opacity-50 grayscale border-red-900' : ''}`}>
-                  <div className="h-24 md:h-32 mb-4 flex items-center justify-center">
-                    {isDead ? (ci?.sprites?.dead ? <img src={ci.sprites.dead} alt={p.username} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-4xl">💀</span>) : ((ci?.sprites?.idle || ci?.sprite) ? <img src={(isTurn && enemyShake) ? (ci?.sprites?.attack || ci?.sprites?.idle || ci?.sprite) : (ci?.sprites?.idle || ci?.sprite)} alt={p.username} className="max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-4xl">{ci?.icon}</span>)}
+            return (
+              <div key={p.userId} className={`panel bg-dark-surface/80 min-w-[140px] flex-1 text-center transition-all duration-300 ${shake ? 'animate-shake' : ''} ${isTurn ? 'border-gold shadow-glow-gold' : 'border-dark-border'} ${isDead ? 'opacity-50 grayscale border-red-900' : ''}`}>
+                <div className="h-24 md:h-32 mb-4 flex items-center justify-center">
+                  {isDead ? (ci?.sprites?.dead ? <img src={ci.sprites.dead} alt={p.username} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-4xl">💀</span>) : ((ci?.sprites?.idle || ci?.sprite) ? <img src={(isTurn && enemyShake) ? (ci?.sprites?.attack || ci?.sprites?.idle || ci?.sprite) : (ci?.sprites?.idle || ci?.sprite)} alt={p.username} className="max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-4xl">{ci?.icon}</span>)}
+                </div>
+                <h3 className="font-title text-lg font-bold text-gray-200">{p.username}</h3>
+                <div className="space-y-2 mt-2">
+                  <div className="h-2 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative">
+                    <div className="absolute top-0 left-0 h-full bg-health" style={{ width: `${hpPct}%` }}></div>
                   </div>
-                  <h3 className="font-title text-lg font-bold text-gray-200">{p.username}</h3>
-                  <div className="space-y-2 mt-2">
-                    <div className="h-2 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative">
-                      <div className="absolute top-0 left-0 h-full bg-health" style={{ width: `${hpPct}%` }}></div>
-                    </div>
-                    <div className="h-2 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative">
-                      <div className="absolute top-0 left-0 h-full bg-mana" style={{ width: `${spPct}%` }}></div>
-                    </div>
+                  <div className="h-2 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative">
+                    <div className="absolute top-0 left-0 h-full bg-mana" style={{ width: `${spPct}%` }}></div>
                   </div>
-                  {p.isDefending && <div className="mt-2 text-xs text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded-full inline-block border border-blue-500/30">🛡️ Defending</div>}
                 </div>
-              );
-            })
-          ) : (
-            <div className={`panel w-full max-w-sm bg-dark-surface/80 border-dark-border text-center ${playerShakes['me'] ? 'animate-shake' : ''}`}>
-              <div className="h-32 md:h-48 mb-4 flex items-center justify-center">
-                {(!myPlayerState.isAlive && CLASS_INFO[myPlayerState.class]?.sprites?.dead) ? <img src={CLASS_INFO[myPlayerState.class].sprites.dead} alt={myPlayerState.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : ((CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) ? <img src={(isMyTurn && enemyShake) ? (CLASS_INFO[myPlayerState.class]?.sprites?.attack || CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) : (CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite)} alt={myPlayerState.name} className="max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-6xl">{CLASS_INFO[myPlayerState.class]?.icon}</span>)}
+                {p.isDefending && <div className="mt-2 text-xs text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded-full inline-block border border-blue-500/30">🛡️ Defending</div>}
               </div>
-              <h3 className="font-title text-2xl font-bold text-gray-200 mb-1">{myPlayerState.name}</h3>
-              <span className="text-sm text-gray-400 block mb-4">Lv.{myPlayerState.level} {CLASS_INFO[myPlayerState.class]?.name}</span>
-              
-              <div className="space-y-3">
-                <div className="h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner">
-                  <div className="absolute top-0 left-0 h-full bg-health transition-all duration-300" style={{ width: `${(myPlayerState.hp / myPlayerState.maxHp) * 100}%` }}></div>
-                  <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-md">HP {myPlayerState.hp}/{myPlayerState.maxHp}</span>
-                </div>
-                <div className="h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner">
-                  <div className="absolute top-0 left-0 h-full bg-mana transition-all duration-300" style={{ width: `${(myPlayerState.sp / myPlayerState.maxSp) * 100}%` }}></div>
-                  <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-md">SP {myPlayerState.sp}/{myPlayerState.maxSp}</span>
-                </div>
-              </div>
-              
-              {myPlayerState.statusEffects?.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-2 mt-4">
-                  {myPlayerState.statusEffects.map((e, i) => (
-                    <span key={i} className="text-[10px] text-red-400 bg-red-900/20 border border-red-500/30 px-2 py-1 rounded-full uppercase tracking-wider font-bold">🔥 {e.name || e.type} ({e.duration}t)</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            );
+          })}
         </div>
 
         <div className="font-title text-4xl text-gray-600 drop-shadow-md py-4 md:py-0 shrink-0">VS</div>
@@ -347,7 +256,7 @@ export default function CombatPage() {
         {/* Enemy Side */}
         <div className={`flex-1 w-full max-w-sm panel bg-dark-surface/80 border-dark-border text-center ${enemyShake ? 'animate-shake' : ''}`}>
           <div className="h-32 md:h-48 mb-4 flex items-center justify-center drop-shadow-[0_0_15px_rgba(196,75,47,0.4)]">
-            {(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShakes['me'] ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-6xl">{enemy.isBoss ? '👹' : '💀'}</span>}
+            {(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShakes[user.id] ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-6xl">{enemy.isBoss ? '👹' : '💀'}</span>}
           </div>
           <h3 className="font-title text-2xl font-bold text-red-400 mb-1">{enemy.name}</h3>
           <p className="text-xs text-gray-500 font-serif italic mb-4">{enemy.flavorText}</p>
@@ -408,14 +317,14 @@ export default function CombatPage() {
       {!result ? (
         <div className="relative flex flex-wrap justify-center gap-4 bg-dark-surface/60 p-6 rounded-xl border border-dark-border">
           <button className="btn bg-red-900/60 hover:bg-red-800 text-red-100 border border-red-500/30 px-6 py-3 min-w-[140px] text-sm" onClick={() => processAction('attack')}
-            disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive} id="btn-attack">
+            disabled={actionLoading || !isMyTurn || !myPlayerState?.isAlive} id="btn-attack">
             <span className="block text-xl mb-1">⚔️</span> Attack
           </button>
           
           {/* Skills */}
           {(CLASS_INFO[myPlayerState?.class]?.skills || []).map((skill) => (
             <button key={skill.key} className="btn bg-blue-900/60 hover:bg-blue-800 text-blue-100 border border-blue-500/30 px-6 py-3 min-w-[140px] text-sm relative" onClick={() => processAction('skill', skill.key)}
-              disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive || myPlayerState?.sp < skill.spCost} id={`btn-${skill.key}`}
+              disabled={actionLoading || !isMyTurn || !myPlayerState?.isAlive || myPlayerState?.sp < skill.spCost} id={`btn-${skill.key}`}
               title={`${skill.description} (${skill.spCost} SP)`}>
               <span className="block text-xl mb-1">{skill.icon || '✨'}</span> {skill.name}
               <span className="absolute top-1 right-2 text-[10px] opacity-70 text-blue-300">{skill.spCost} SP</span>
@@ -423,13 +332,13 @@ export default function CombatPage() {
           ))}
           
           <button className="btn bg-gray-700/60 hover:bg-gray-600 text-gray-200 border border-gray-500/30 px-6 py-3 min-w-[140px] text-sm" onClick={() => processAction('defend')}
-            disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive} id="btn-defend">
+            disabled={actionLoading || !isMyTurn || !myPlayerState?.isAlive} id="btn-defend">
             <span className="block text-xl mb-1">🛡️</span> Defend
           </button>
           
           <div className="relative min-w-[140px]">
             <button className="btn w-full bg-green-900/60 hover:bg-green-800 text-green-100 border border-green-500/30 px-6 py-3 text-sm h-full" onClick={() => setShowItems(!showItems)}
-              disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive || inventory.length === 0} id="btn-items">
+              disabled={actionLoading || !isMyTurn || !myPlayerState?.isAlive || inventory.length === 0} id="btn-items">
               <span className="block text-xl mb-1">🧪</span> Items ({inventory.length})
             </button>
             
@@ -445,13 +354,6 @@ export default function CombatPage() {
               </div>
             )}
           </div>
-          
-          {!isCoop && (
-            <button className="btn btn-ghost px-6 py-3 min-w-[140px] text-sm border border-dark-border/50 hover:border-gray-500/50" onClick={handleFlee}
-              disabled={actionLoading} id="btn-flee">
-              <span className="block text-xl mb-1">🏃</span> Flee
-            </button>
-          )}
         </div>
       ) : (
         <div className="panel bg-dark-surface text-center p-12 shadow-2xl border-2 border-gold/30 animate-slide-up">
@@ -485,20 +387,14 @@ export default function CombatPage() {
                 </div>
               )}
               
-              {result.leveledUp && !isCoop && (
-                <div className="bg-gold/10 border border-gold/50 text-gold px-6 py-4 rounded-xl max-w-md mx-auto mb-8 animate-pulse-slow font-bold">
-                  🎊 Level Up! You gained new stat points!
-                </div>
-              )}
-              
-              {(!isCoop || state.players.find(p => p.userId === user.id)?.slotIndex === 0) ? (
+              {state.players.find(p => p.userId === user.id)?.slotIndex === 0 ? (
                 <button className="btn btn-gold shadow-glow-gold !py-4 !px-12 !text-lg mx-auto" onClick={() => {
-                  if (isCoop) {
-                    emitNoAck('combat:dismiss_result', { sessionId: coopSessionId || queryParams.get('coop'), lobbyId: state.lobbyId });
-                  } else {
-                    setCombatState(null);
-                    navigate(`/dungeon/${charId}`);
-                  }
+                  emitNoAck('combat:dismiss_result', { sessionId, lobbyId: state.lobbyId });
+                  // Fallback: If socket event isn't received within 1s, force navigate
+                  setTimeout(() => {
+                    setCoopCombatState(null);
+                    navigate(`/multiplayer/dungeon/${charId}/${sessionId}`);
+                  }, 1000);
                 }} id="btn-continue">
                   Return to Dungeon
                 </button>
@@ -523,7 +419,7 @@ export default function CombatPage() {
                 </div>
               )}
               
-              <button className="btn border border-red-500/50 text-red-400 hover:bg-red-900/30 hover:border-red-400 !py-4 !px-12 !text-lg mx-auto" onClick={() => navigate(`/summary/${charId}`)} id="btn-summary">
+              <button className="btn border border-red-500/50 text-red-400 hover:bg-red-900/30 hover:border-red-400 !py-4 !px-12 !text-lg mx-auto" onClick={() => navigate(`/multiplayer/summary/${charId}/${sessionId}`)} id="btn-summary">
                 View Run Summary
               </button>
             </>

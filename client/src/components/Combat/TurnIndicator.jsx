@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
 import './TurnIndicator.css';
 
-export default function TurnIndicator({ isMyTurn, activeUsername, timeLimit = 30 }) {
+export default function TurnIndicator({ isMyTurn, activeUsername, timeLimit = 30, turnStartedAt }) {
   const [timeLeft, setTimeLeft] = useState(timeLimit);
 
   useEffect(() => {
-    setTimeLeft(timeLimit);
+    const calculateTimeLeft = () => {
+      if (!turnStartedAt) return timeLimit;
+      const elapsed = Math.floor((Date.now() - turnStartedAt) / 1000);
+      return Math.max(0, timeLimit - elapsed);
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    
     const interval = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 0) { clearInterval(interval); return 0; }
@@ -13,7 +20,7 @@ export default function TurnIndicator({ isMyTurn, activeUsername, timeLimit = 30
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [isMyTurn, activeUsername, timeLimit]);
+  }, [isMyTurn, activeUsername, timeLimit, turnStartedAt]);
 
   const pct = (timeLeft / timeLimit) * 100;
   const urgent = timeLeft <= 10;

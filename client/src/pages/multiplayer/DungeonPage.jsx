@@ -1,30 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useGame } from '../context/GameContext';
-import { useAuth } from '../context/AuthContext';
-import { useSocketContext } from '../context/SocketContext';
-import { useSocketEvent, useSocketEmit } from '../hooks/useSocket';
-import { useAudio } from '../context/AudioContext';
-import api from '../utils/api';
-import { ROOM_ICONS, ROOM_LABELS } from '../data/gameData';
-import PartyPanel from '../components/Party/PartyPanel';
+import { useGame } from '../../context/GameContext';
+import { useAuth } from '../../context/AuthContext';
+import { useSocketContext } from '../../context/SocketContext';
+import { useSocketEvent, useSocketEmit } from '../../hooks/useSocket';
+import { useAudio } from '../../context/AudioContext';
+import { ROOM_ICONS, ROOM_LABELS } from '../../data/gameData';
+import PartyPanel from '../../components/Party/PartyPanel';
 
 export default function DungeonPage() {
-  const { charId } = useParams();
+  const { charId, sessionId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { user } = useAuth();
   
   const { 
     currentCharacter, setCurrentCharacter, 
-    setCombatState,
-    coopSessionId, setCoopSessionId,
     partyPlayers, setPartyPlayers,
     isHost, setIsHost,
-    setCoopCombatState
+    setCoopCombatState,
+    setCoopSessionId, setCoopCharacterId
   } = useGame();
   
-  const { socket, connected } = useSocketContext();
+  const { connected } = useSocketContext();
   const { emit, emitNoAck } = useSocketEmit();
 
   const [floor, setFloor] = useState(null);
@@ -34,29 +31,20 @@ export default function DungeonPage() {
   const [moving, setMoving] = useState(false);
   const { playTrack } = useAudio();
 
-  const queryParams = new URLSearchParams(location.search);
-  const isCoop = !!coopSessionId || !!queryParams.get('coop');
-
   useEffect(() => {
     playTrack('mysterious_dungeon.mp3');
-    if (queryParams.get('coop')) {
-      setCoopSessionId(queryParams.get('coop'));
-    }
-  }, [location.search, playTrack]);
+  }, [playTrack]);
 
   useEffect(() => {
-    if (isCoop) {
-      if (connected) syncCoopSession();
-    } else {
-      loadSinglePlayerFloor();
+    if (connected && sessionId) {
+      setCoopSessionId(sessionId);
+      setCoopCharacterId(charId);
+      syncCoopSession();
     }
-  }, [charId, isCoop, connected]);
-
-  // --- CO-OP SOCKET LOGIC ---
+  }, [charId, sessionId, connected]);
 
   const syncCoopSession = async () => {
     try {
-      const sessionId = coopSessionId || queryParams.get('coop');
       const res = await emit('session:sync', { sessionId });
       setFloor(res.floor);
       setCurrentRoom(res.session.currentRoom);
@@ -68,6 +56,12 @@ export default function DungeonPage() {
       
       setIsHost(res.players?.[0]?.userId === user.id); // fallback
       if (res.lobby?.hostUserId) setIsHost(res.lobby.hostUserId === user.id);
+
+      // If combat is already active, redirect there
+      if (res.isCombatActive) {
+        setCoopCombatState(res.combatState);
+        navigate(`/multiplayer/combat/${charId}/${sessionId}`);
+      }
     } catch (err) {
       console.error('Co-op sync error:', err);
     } finally {
@@ -103,7 +97,7 @@ export default function DungeonPage() {
   });
 
   useSocketEvent('dungeon:completed', (data) => {
-    navigate(`/summary/${charId}`);
+    navigate(`/multiplayer/summary/${charId}/${sessionId}`);
   });
 
   useSocketEvent('dungeon:event_dismissed', () => {
@@ -112,113 +106,45 @@ export default function DungeonPage() {
 
   useSocketEvent('combat:started', (data) => {
     setCoopCombatState(data.combatState);
-    navigate(`/combat/${charId}?coop=${coopSessionId || queryParams.get('coop')}`);
+    navigate(`/multiplayer/combat/${charId}/${sessionId}`);
   });
 
-  // --- SINGLE PLAYER API LOGIC ---
-
-  const loadSinglePlayerFloor = async () => {
-    try {
-      const data = await api.getFloor(parseInt(charId));
-      setFloor(data.floor);
-      setCurrentRoom(data.currentRoom);
-      setCurrentCharacter(data.character);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
-
-  const moveRoomSinglePlayer = async (roomIndex) => {
-    try {
-      const data = await api.moveRoom(parseInt(charId), roomIndex);
-      setCurrentRoom(roomIndex);
-      setCurrentCharacter(data.character);
-
-      if (data.enemy) {
-        const combatData = await api.startCombat(parseInt(charId), data.enemy);
-        setCombatState(combatData.combatState);
-        navigate(`/combat/${charId}`);
-        return;
-      }
-
-      setEventModal({
-        room: data.room,
-        events: data.events,
-        loot: data.loot,
-        character: data.character
-      });
-    } catch (err) { console.error(err); }
-    finally { setMoving(false); }
-  };
-
-  // --- UNIFIED ACTIONS ---
-
   const moveToRoom = async (roomIndex) => {
-    if (moving) return;
-    if (isCoop && !isHost) return; // Only host can navigate
+    if (moving || !isHost) return; 
 
     setMoving(true);
-    if (isCoop) {
-      try {
-        const sessionId = coopSessionId || queryParams.get('coop');
-        const res = await emit('dungeon:move', { sessionId, roomIndex });
-        if (res.result.enemy && isHost) {
-          // If we hit an enemy, host initiates combat
-          await emit('combat:start_coop', { sessionId, enemy: res.result.enemy });
-        }
-      } catch (err) {
-        console.error(err);
-        setMoving(false);
+    try {
+      const res = await emit('dungeon:move', { sessionId, roomIndex });
+      if (res.result.enemy && isHost) {
+        // If we hit an enemy, host initiates combat
+        await emit('combat:start_coop', { sessionId, enemy: res.result.enemy });
       }
-    } else {
-      await moveRoomSinglePlayer(roomIndex);
+    } catch (err) {
+      console.error(err);
+      setMoving(false);
     }
   };
 
   const handleNextFloor = async () => {
-    if (moving) return;
+    if (moving || !isHost) return;
     setLoading(true);
-    if (isCoop) {
-      try {
-        const sessionId = coopSessionId || queryParams.get('coop');
-        await emit('dungeon:next_floor', { sessionId });
-      } catch (err) {
-        console.error(err);
-        setLoading(false);
-      }
-    } else {
-      try {
-        const data = await api.nextFloor(parseInt(charId));
-        if (data.completed) {
-          navigate(`/summary/${charId}`);
-          return;
-        }
-        setFloor(data.floor);
-        setCurrentRoom(0);
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    }
-  };
-
-  const handleSave = async () => {
     try {
-      await api.saveDungeon(parseInt(charId));
-      alert('Checkpoint saved!');
-    } catch (err) { console.error(err); }
+      await emit('dungeon:next_floor', { sessionId });
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
   };
 
   const isLastRoom = floor && currentRoom >= floor.rooms.length - 1;
 
-  if (loading || (isCoop && !connected)) {
-    return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Descending into the dungeon...</p></div>;
+  if (loading || !connected) {
+    return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Syncing with party...</p></div>;
   }
   if (!floor) return <div className="max-w-5xl mx-auto p-8 text-center text-red-400">Failed to load dungeon.</div>;
 
-  const char = currentCharacter;
-  const hpPct = char ? (char.hp / char.max_hp) * 100 : 0;
-  const spPct = char ? (char.sp / char.max_sp) * 100 : 0;
-
   // Format party for PartyPanel
-  const formattedParty = isCoop ? partyPlayers.map(p => ({
+  const formattedParty = partyPlayers.map(p => ({
     userId: p.userId,
     username: p.username || p.character.name,
     class: p.character.class,
@@ -228,7 +154,7 @@ export default function DungeonPage() {
     sp: p.character.sp,
     maxSp: p.character.max_sp,
     isAlive: p.character.is_alive
-  })) : [];
+  }));
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 animate-fade-in">
@@ -246,64 +172,15 @@ export default function DungeonPage() {
 
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="flex-1 flex flex-col gap-8">
-          {char && !isCoop && (
-            <div className="panel bg-dark-surface/80 border-gold/20 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gold/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-              
-              <div className="flex-1 w-full space-y-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400 w-12 flex-shrink-0 text-right">HP</span>
-                  <div className="flex-1 h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner">
-                    <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-health to-red-400 transition-all duration-500" style={{ width: `${hpPct}%` }}></div>
-                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white tracking-widest drop-shadow-md">
-                      {char.hp}/{char.max_hp}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400 w-12 flex-shrink-0 text-right">SP</span>
-                  <div className="flex-1 h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner">
-                    <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-mana to-blue-300 transition-all duration-500" style={{ width: `${spPct}%` }}></div>
-                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white tracking-widest drop-shadow-md">
-                      {char.sp}/{char.max_sp}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-6 px-4 border-l border-dark-border/50">
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] uppercase text-gray-500 font-bold mb-1">Gold</span>
-                  <span className="font-title text-gold font-bold">💰 {char.gold}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] uppercase text-gray-500 font-bold mb-1">Level</span>
-                  <span className="font-title text-gray-200 font-bold">⭐ {char.level}</span>
-                </div>
-                {char.stat_points > 0 && (
-                  <button className="btn btn-gold !py-1 !px-3 !text-xs animate-pulse-slow ml-2" onClick={() => navigate(`/levelup/${charId}`)}>
-                    Level Up ({char.stat_points})
-                  </button>
-                )}
-              </div>
-              
-              <div className="flex flex-row md:flex-col items-center gap-3 w-full md:w-auto">
-                <button className="btn btn-ghost w-full !py-2" onClick={() => navigate(`/inventory/${charId}`)}>🎒 Inventory</button>
-                <button className="btn btn-ghost w-full !py-2 border border-dark-border/50 hover:border-blue-500/50 hover:text-blue-400" onClick={handleSave}>💾 Save</button>
-              </div>
-            </div>
-          )}
-
           <div className="panel bg-dark-surface/40 border-dark-border/50 overflow-x-auto py-16 px-8 relative custom-scrollbar">
             <div className="flex items-center min-w-max gap-16 px-4">
               {floor.rooms.map((room, i) => {
                 const isVisited = i < currentRoom;
                 const isCurrent = i === currentRoom;
                 const isNext = i === currentRoom + 1;
-                const isLocked = i > currentRoom + 1;
                 
                 // Only host can click next in co-op
-                const canClick = isNext && (!isCoop || isHost);
+                const canClick = isNext && isHost;
 
                 // Styling logic
                 let nodeStyle = "border-dark-border text-gray-600 opacity-50 cursor-not-allowed";
@@ -320,7 +197,7 @@ export default function DungeonPage() {
                   iconStyle = "drop-shadow-md";
                 }
                 
-                if (isCoop && !isHost && isNext) {
+                if (!isHost && isNext) {
                   nodeStyle = "border-yellow-500/30 text-gray-400 opacity-80 cursor-not-allowed";
                 }
 
@@ -332,7 +209,7 @@ export default function DungeonPage() {
                     <button
                       className={`w-28 h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all duration-300 flex-shrink-0 relative ${nodeStyle}`}
                       onClick={() => canClick ? moveToRoom(i) : null}
-                      disabled={(!isNext && !isCurrent) || moving || (isCoop && !isHost && isNext)}
+                      disabled={(!isNext && !isCurrent) || moving || (!isHost && isNext)}
                       title={`${ROOM_LABELS[room.type]}: ${room.description}`}
                       id={`room-${i}`}
                     >
@@ -340,7 +217,7 @@ export default function DungeonPage() {
                       <span className="text-[10px] font-bold uppercase tracking-widest">{ROOM_LABELS[room.type]}</span>
                       
                       {canClick && <span className="absolute -bottom-8 w-max text-[10px] text-yellow-500 font-bold uppercase tracking-widest animate-pulse">Click to enter</span>}
-                      {isNext && isCoop && !isHost && <span className="absolute -bottom-8 w-max text-[10px] text-gray-500 font-bold uppercase tracking-widest">Waiting for host</span>}
+                      {isNext && !isHost && <span className="absolute -bottom-8 w-max text-[10px] text-gray-500 font-bold uppercase tracking-widest">Waiting for host</span>}
                     </button>
                   </div>
                 );
@@ -353,8 +230,15 @@ export default function DungeonPage() {
               <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gold/5 pointer-events-none"></div>
               <h3 className="font-title text-4xl text-gold mb-3 drop-shadow-md">🎉 Floor Complete!</h3>
               <p className="text-gray-300 font-serif italic mb-8">You've cleared all rooms on this floor. The path deeper reveals itself.</p>
-              {(!isCoop || isHost) ? (
-                <button className="btn btn-gold shadow-glow-gold !py-4 !px-8 !text-lg mx-auto" onClick={handleNextFloor} id="next-floor-btn" disabled={moving}>
+              {isHost ? (
+                <button className="btn btn-gold shadow-glow-gold !py-4 !px-8 !text-lg mx-auto" onClick={() => {
+                  handleNextFloor();
+                  // Fallback: If socket event isn't received within 1s, force sync/refresh
+                  setTimeout(() => {
+                    syncCoopSession();
+                    setLoading(false);
+                  }, 1500);
+                }} id="next-floor-btn" disabled={moving}>
                   ⬇️ Descend to Floor {floor.id + 1}
                 </button>
               ) : (
@@ -364,22 +248,21 @@ export default function DungeonPage() {
           )}
         </div>
 
-        {isCoop && (
-          <div className="w-full lg:w-[340px] flex flex-col gap-6">
-            <PartyPanel players={formattedParty} myUserId={user.id} />
-            <div className="panel bg-dark-surface/60 border-dark-border/50 flex flex-col gap-3">
-              <button className="btn btn-ghost w-full !py-3" onClick={() => navigate(`/inventory/${charId}`)}>🎒 Party Inventory</button>
-              <button className="btn btn-ghost w-full !py-3 border border-dark-border/50 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/50" onClick={() => {
-                if (window.confirm('Are you sure you want to abandon the co-op session?')) {
-                  emitNoAck('lobby:leave');
-                  setCoopSessionId(null);
-                  setCoopCombatState(null);
-                  navigate('/dashboard');
-                }
-              }}>🚪 Abandon Co-op</button>
-            </div>
+        <div className="w-full lg:w-[340px] flex flex-col gap-6">
+          <PartyPanel players={formattedParty} myUserId={user.id} />
+          <div className="panel bg-dark-surface/60 border-dark-border/50 flex flex-col gap-3">
+            <button className="btn btn-ghost w-full !py-3" onClick={() => navigate(`/multiplayer/inventory/${charId}/${sessionId}`)}>🎒 Party Inventory</button>
+            <button className="btn btn-ghost w-full !py-3 border border-dark-border/50 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/50" onClick={() => {
+              if (window.confirm('Are you sure you want to abandon the co-op session?')) {
+                emitNoAck('lobby:leave');
+                setCoopCombatState(null);
+                setCoopSessionId(null);
+                setCoopCharacterId(null);
+                navigate('/dashboard/multiplayer');
+              }
+            }}>🚪 Abandon Co-op</button>
           </div>
-        )}
+        </div>
       </div>
 
       {eventModal && (
@@ -404,7 +287,7 @@ export default function DungeonPage() {
                 <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center mb-2">Loot Acquired</h4>
                 <div className="flex justify-between items-center bg-gold/10 p-3 rounded border border-gold/30 font-bold text-gold">
                   <span>Gold Found</span>
-                  <span>+{eventModal.loot.gold} 💰 {isCoop && <span className="text-[10px] font-normal uppercase opacity-70 ml-1">(split)</span>}</span>
+                  <span>+{eventModal.loot.gold} 💰 <span className="text-[10px] font-normal uppercase opacity-70 ml-1">(split)</span></span>
                 </div>
                 {eventModal.loot.items.map((item, i) => {
                   const getRarityBadge = (r) => {
@@ -427,10 +310,14 @@ export default function DungeonPage() {
             )}
             
             <div className="mt-auto pt-2">
-              {(!isCoop || isHost) ? (
+              {isHost ? (
                 <button className="btn btn-gold w-full !py-3 shadow-glow-gold" onClick={() => {
-                  if (isCoop) emitNoAck('dungeon:dismiss_event', { sessionId: coopSessionId || queryParams.get('coop') });
+                  emitNoAck('dungeon:dismiss_event', { sessionId });
                   setEventModal(null);
+                  // Global fallback: emit usually works, but let's ensure we can move
+                  setTimeout(() => {
+                    syncCoopSession();
+                  }, 1000);
                 }}>Continue Journey</button>
               ) : (
                 <p className="text-gray-500 text-sm font-bold uppercase tracking-widest text-center py-3 bg-dark-bg rounded border border-dark-border">Waiting for host...</p>

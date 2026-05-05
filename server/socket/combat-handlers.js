@@ -3,7 +3,6 @@ const { calculateDamage, calculateEnemyDamage, getDefendReduction, resolveEnemyA
 const { generateCombatLoot } = require('../game/loot-generator');
 const { generateEchoReward, ACHIEVEMENT_DEFINITIONS } = require('../game/echo-system');
 const { getActiveLobbies } = require('./lobby-handlers');
-const { getSession } = require('./game-handlers');
 
 // Active co-op combat states
 const coopCombatStates = new Map();
@@ -14,6 +13,8 @@ function registerCombatHandlers(io, socket) {
   socket.on('combat:start_coop', async (data, callback) => {
     try {
       const { sessionId, enemy } = data;
+      // Resolve circular dependency by requiring here
+      const { getSession } = require('./game-handlers');
       const session = getSession(sessionId);
       if (!session) return callback({ success: false, error: 'No session.' });
 
@@ -374,6 +375,7 @@ async function handleCoopVictory(io, combatState, turnLog) {
   }
 
   // Also update the session room
+  const { getSession } = require('./game-handlers');
   await run('UPDATE coop_sessions SET current_room = current_room + 1, updated_at = NOW() WHERE id = $1', [combatState.sessionId]);
   const session = getSession(combatState.sessionId);
   if (session) session.currentRoom += 1;
@@ -431,6 +433,7 @@ function emitCurrentTurn(io, combatState) {
 
 function startTurnTimer(io, combatState) {
   clearTurnTimer(combatState);
+  combatState.turnStartedAt = Date.now();
   combatState.turnTimer = setTimeout(() => {
     // Auto-defend on timeout
     const turn = combatState.turnQueue[combatState.currentTurnIndex];
@@ -460,6 +463,7 @@ function sanitizeCoopState(state) {
     round: state.round,
     currentTurnIndex: state.currentTurnIndex,
     turnQueue: state.turnQueue,
+    turnStartedAt: state.turnStartedAt,
     players: state.players.map(p => ({
       userId: p.userId, username: p.username, slotIndex: p.slotIndex, isAlive: p.isAlive,
       hp: p.state.hp, maxHp: p.state.max_hp, sp: p.state.sp, maxSp: p.state.max_sp,
@@ -475,4 +479,4 @@ function sanitizeCoopState(state) {
   };
 }
 
-module.exports = { registerCombatHandlers, coopCombatStates };
+module.exports = { registerCombatHandlers, coopCombatStates, sanitizeCoopState };

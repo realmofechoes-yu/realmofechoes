@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
 import { useAudio } from '../context/AudioContext';
@@ -8,22 +8,27 @@ import { CLASS_INFO } from '../data/gameData';
 
 export default function DashboardPage() {
   const { user, refreshProfile } = useAuth();
-  const { setCurrentCharacter, clearGameState } = useGame();
+  const { setCurrentCharacter, coopSessionId, coopCharacterId } = useGame();
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
   const { playTrack } = useAudio();
   const navigate = useNavigate();
+  const { mode } = useParams();
+
+  // If the mode is invalid, redirect back to mode select
+  if (mode !== 'singleplayer' && mode !== 'multiplayer') {
+    return <Navigate to="/select-mode" replace />;
+  }
 
   useEffect(() => {
     playTrack('journey_begins.mp3');
-    clearGameState();
     loadCharacters();
     refreshProfile();
-  }, []);
+  }, [mode]);
 
   const loadCharacters = async () => {
     try {
-      const data = await api.getCharacters();
+      const data = await api.getCharacters(mode);
       setCharacters(data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -32,9 +37,9 @@ export default function DashboardPage() {
   const handleContinue = (char) => {
     setCurrentCharacter(char);
     if (!char.is_alive || char.run_status === 'dead') {
-      navigate(`/summary/${char.id}`);
+      navigate(`/singleplayer/summary/${char.id}`);
     } else {
-      navigate(`/dungeon/${char.id}`);
+      navigate(`/singleplayer/dungeon/${char.id}`);
     }
   };
 
@@ -50,18 +55,37 @@ export default function DashboardPage() {
 
   return (
     <div className="w-full max-w-6xl mx-auto animate-fade-in">
+      <div className="mb-4 flex justify-between items-center">
+        <button className="btn btn-ghost !px-4 !py-2 text-sm" onClick={() => navigate('/select-mode')}>
+          ⬅️ Change Mode
+        </button>
+        {coopSessionId && (
+          <button 
+            onClick={() => navigate(`/multiplayer/dungeon/${coopCharacterId}/${coopSessionId}`)}
+            className="btn btn-arcane !py-2 !px-6 text-sm shadow-glow-primary animate-pulse"
+          >
+            ⚔️ Resume Active Co-Op
+          </button>
+        )}
+      </div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
           <h2 className="text-3xl font-title font-bold text-gold drop-shadow-md flex items-center gap-3">
-            <span className="text-4xl">⚜️</span> Hall of Heroes
+            <span className="text-4xl">⚜️</span> {mode === 'multiplayer' ? 'Multiplayer Heroes' : 'Singleplayer Heroes'}
           </h2>
-          <p className="text-gray-400 mt-2 font-serif italic">Select a champion or forge a new legend.</p>
+          <p className="text-gray-400 mt-2 font-serif italic">
+            {mode === 'multiplayer' 
+              ? 'Select an existing hero for co-op or create a new multiplayer champion.'
+              : 'Select a champion or forge a new legend for your solo journey.'}
+          </p>
         </div>
         <div className="flex flex-wrap gap-4 w-full md:w-auto">
-          <button className="btn btn-danger flex-1 md:flex-none shadow-glow-health" onClick={() => navigate('/lobby')} id="coop-btn">
-            <span className="text-lg">🏰</span> Co-Op Lobby
-          </button>
-          <button className="btn btn-gold flex-1 md:flex-none shadow-glow-gold" onClick={() => navigate('/create')} id="new-hero-btn">
+          {mode === 'multiplayer' && (
+            <button className="btn btn-arcane flex-1 md:flex-none shadow-glow-primary" onClick={() => navigate('/lobby')} id="coop-btn">
+              <span className="text-lg">🏰</span> Enter Co-Op Lobby
+            </button>
+          )}
+          <button className="btn btn-gold flex-1 md:flex-none shadow-glow-gold" onClick={() => navigate(`/create/${mode}`)} id="new-hero-btn">
             <span className="text-lg">✨</span> New Hero
           </button>
         </div>
@@ -85,8 +109,8 @@ export default function DashboardPage() {
         <div className="text-center py-20 panel panel-glow bg-dark-surface/40 border-gold/30">
           <div className="text-6xl mb-6 opacity-80 animate-float">🗡️</div>
           <h3 className="font-title text-2xl text-gold mb-3 drop-shadow-sm">No Heroes Yet</h3>
-          <p className="text-gray-400 mb-8 font-serif italic">Create your first champion to begin your journey into the dungeon.</p>
-          <button className="btn btn-gold !py-3 !px-8 text-base shadow-glow-gold" onClick={() => navigate('/create')}>
+          <p className="text-gray-400 mb-8 font-serif italic">Create your first champion to begin your journey.</p>
+          <button className="btn btn-gold !py-3 !px-8 text-base shadow-glow-gold" onClick={() => navigate(`/create/${mode}`)}>
             ✨ Forge Your First Hero
           </button>
         </div>
@@ -173,9 +197,15 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex gap-3 relative z-10">
-                  <button className="btn btn-gold flex-1 !text-xs !py-2" onClick={() => handleContinue(char)} id={`continue-${char.id}`}>
-                    {isDead ? '📜 View Summary' : '⚔️ Continue'}
-                  </button>
+                  {mode === 'singleplayer' ? (
+                    <button className="btn btn-gold flex-1 !text-xs !py-2" onClick={() => handleContinue(char)} id={`continue-${char.id}`}>
+                      {isDead ? '📜 View Summary' : '⚔️ Continue'}
+                    </button>
+                  ) : (
+                    <button className="btn flex-1 !text-xs !py-2 bg-dark-bg text-gray-500 border border-dark-border cursor-default">
+                      {isDead ? '💀 Fallen' : '🛡️ Ready for Co-Op'}
+                    </button>
+                  )}
                   <button className="btn btn-danger !px-4 !py-2" onClick={() => handleDelete(char.id)} id={`delete-${char.id}`} title="Delete Hero">
                     🗑️
                   </button>
