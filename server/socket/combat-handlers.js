@@ -469,7 +469,8 @@ function sanitizeCoopState(state) {
     })),
     enemies: state.enemies.map(e => ({
       name: e.name, hp: e.hp, maxHp: e.maxHp, flavorText: e.flavorText,
-      special: e.special, statusEffects: e.statusEffects, isBoss: e.isBoss || false
+      special: e.special, statusEffects: e.statusEffects, isBoss: e.isBoss || false,
+      sprite: e.sprite, sprites: e.sprites
     }))
   };
 }

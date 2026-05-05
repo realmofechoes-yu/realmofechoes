@@ -376,7 +376,8 @@ function sanitizeCombatState(state) {
     enemy: {
       name: state.enemy.name, hp: state.enemy.hp, maxHp: state.enemy.maxHp,
       flavorText: state.enemy.flavorText, special: state.enemy.special,
-      statusEffects: state.enemy.statusEffects, isBoss: state.enemy.isBoss || false
+      statusEffects: state.enemy.statusEffects, isBoss: state.enemy.isBoss || false,
+      sprite: state.enemy.sprite, sprites: state.enemy.sprites
     }
   };
 }

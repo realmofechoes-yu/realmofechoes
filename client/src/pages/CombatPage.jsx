@@ -7,7 +7,6 @@ import { useSocketEvent, useSocketEmit } from '../hooks/useSocket';
 import api from '../utils/api';
 import { CLASS_INFO } from '../data/gameData';
 import TurnIndicator from '../components/Combat/TurnIndicator';
-import './CombatPage.css';
 
 export default function CombatPage() {
   const { charId } = useParams();
@@ -24,7 +23,7 @@ export default function CombatPage() {
   } = useGame();
 
   const { socket, connected } = useSocketContext();
-  const { emit } = useSocketEmit();
+  const { emit, emitNoAck } = useSocketEmit();
 
   const [turnLog, setTurnLog] = useState([]);
   const [allLogs, setAllLogs] = useState([]);
@@ -99,7 +98,6 @@ export default function CombatPage() {
     if (target === 'enemy') {
       x = 60 + Math.random() * 20;
     } else {
-      // For players, we distribute them horizontally if co-op
       x = 20 + Math.random() * 20; 
     }
     setDamageNumbers(prev => [...prev, { id, amount, type, x, targetId }]);
@@ -118,7 +116,6 @@ export default function CombatPage() {
     setTurnLog(data.turnLog);
     setAllLogs(prev => [...prev, ...data.turnLog]);
 
-    // Process visual effects
     for (const evt of data.turnLog) {
       if (evt.type === 'player_attack' || evt.type === 'player_skill') {
         setEnemyShake(true);
@@ -126,7 +123,6 @@ export default function CombatPage() {
         setTimeout(() => setEnemyShake(false), 500);
       }
       if (evt.type === 'enemy_damage' || evt.type === 'enemy_attack') {
-        // Find who was hit (by username)
         const targetPlayer = data.combatState.players.find(p => p.username === evt.target);
         if (targetPlayer) {
           shakePlayer(targetPlayer.userId);
@@ -179,7 +175,6 @@ export default function CombatPage() {
       try {
         const sessionId = coopSessionId || queryParams.get('coop');
         await emit('combat:action', { sessionId, action, skillKey, itemId });
-        // The result will come back via 'combat:turn_result'
       } catch (err) {
         console.error(err);
         setAllLogs(prev => [...prev, { type: 'error', message: err.message }]);
@@ -221,7 +216,7 @@ export default function CombatPage() {
   };
 
   const handleFlee = async () => {
-    if (actionLoading || result || isCoop) return; // Fleeing not allowed in co-op yet
+    if (actionLoading || result || isCoop) return;
     setActionLoading(true);
     try {
       const data = await api.flee(parseInt(charId));
@@ -241,14 +236,13 @@ export default function CombatPage() {
     finally { setActionLoading(false); }
   };
 
-  if (isCoop && !coopCombatState) return <div className="loader-container"><div className="loader"></div></div>;
-  if (!isCoop && !combatState) return <div className="loader-container"><div className="loader"></div></div>;
+  if (isCoop && !coopCombatState) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Loading Combat...</p></div>;
+  if (!isCoop && !combatState) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Loading Combat...</p></div>;
 
   const state = isCoop ? coopCombatState : combatState;
   const enemy = state.enemies ? state.enemies[0] : state.enemy;
   const enemyHpPct = (enemy.hp / enemy.maxHp) * 100;
   
-  // Single player state
   const myPlayerState = isCoop 
     ? state.players.find(p => p.userId === user.id) 
     : { ...state.player, isAlive: state.player.hp > 0, userId: user.id };
@@ -263,21 +257,21 @@ export default function CombatPage() {
   const activeUsername = isCoop ? state.players.find(p => p.userId === activeTurnUserId)?.username : myPlayerState?.name;
 
   return (
-    <div className="combat-page animate-fade-in">
-      <div className="combat-header">
-        <h2 className="page-title">⚔️ Combat — Round {state.round || state.turn}</h2>
-        {enemy.isBoss && <span className="boss-badge">👹 BOSS</span>}
+    <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
+      <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
+        <h2 className="text-3xl font-title font-bold text-gold drop-shadow-md">⚔️ Combat — Round {state.round || state.turn}</h2>
+        {enemy.isBoss && <span className="font-title font-bold text-sm text-red-500 bg-red-900/20 px-3 py-1 rounded-full border border-red-500/40 animate-pulse">👹 BOSS</span>}
       </div>
 
       {isCoop && activeTurnUserId && !result && (
-        <div className="mb-md">
+        <div className="mb-8">
           <TurnIndicator isMyTurn={isMyTurn} activeUsername={activeUsername} timeLimit={30} />
         </div>
       )}
 
-      <div className="combat-arena">
+      <div className="relative flex flex-col md:flex-row gap-8 items-center justify-between mb-12 min-h-[300px]">
         {/* Player Side */}
-        <div className="coop-players-side">
+        <div className="flex-1 w-full flex flex-wrap gap-4 justify-center">
           {isCoop ? (
             state.players.map((p, index) => {
               const ci = CLASS_INFO[p.class];
@@ -288,32 +282,46 @@ export default function CombatPage() {
               const shake = playerShakes[p.userId];
 
               return (
-                <div key={p.userId} className={`combatant player-side ${shake ? 'animate-shake' : ''} ${isTurn ? 'active-turn' : ''} ${isDead ? 'dead' : ''}`}>
-                  <div className="combatant-icon">{isDead ? (ci?.sprites?.dead ? <img src={ci.sprites.dead} alt={p.username} className="combatant-sprite" /> : '💀') : ((ci?.sprites?.idle || ci?.sprite) ? <img src={(isTurn && enemyShake) ? (ci?.sprites?.attack || ci?.sprites?.idle || ci?.sprite) : (ci?.sprites?.idle || ci?.sprite)} alt={p.username} className="combatant-sprite" /> : ci?.icon)}</div>
-                  <h3 className="combatant-name">{p.username}</h3>
-                  <div className="combatant-bars">
-                    <div className="stat-bar stat-bar-hp"><div className="stat-bar-fill" style={{ width: `${hpPct}%` }}></div></div>
-                    <div className="stat-bar stat-bar-sp"><div className="stat-bar-fill" style={{ width: `${spPct}%` }}></div></div>
+                <div key={p.userId} className={`panel bg-dark-surface/80 min-w-[140px] flex-1 text-center transition-all duration-300 ${shake ? 'animate-shake' : ''} ${isTurn ? 'border-gold shadow-glow-gold' : 'border-dark-border'} ${isDead ? 'opacity-50 grayscale border-red-900' : ''}`}>
+                  <div className="h-24 md:h-32 mb-4 flex items-center justify-center">
+                    {isDead ? (ci?.sprites?.dead ? <img src={ci.sprites.dead} alt={p.username} className="max-w-full max-h-full object-contain [image-rendering:pixelated]" /> : <span className="text-4xl">💀</span>) : ((ci?.sprites?.idle || ci?.sprite) ? <img src={(isTurn && enemyShake) ? (ci?.sprites?.attack || ci?.sprites?.idle || ci?.sprite) : (ci?.sprites?.idle || ci?.sprite)} alt={p.username} className="max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated]" /> : <span className="text-4xl">{ci?.icon}</span>)}
                   </div>
-                  {p.isDefending && <div className="status-tag">🛡️ Defending</div>}
+                  <h3 className="font-title text-lg font-bold text-gray-200">{p.username}</h3>
+                  <div className="space-y-2 mt-2">
+                    <div className="h-2 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative">
+                      <div className="absolute top-0 left-0 h-full bg-health" style={{ width: `${hpPct}%` }}></div>
+                    </div>
+                    <div className="h-2 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative">
+                      <div className="absolute top-0 left-0 h-full bg-mana" style={{ width: `${spPct}%` }}></div>
+                    </div>
+                  </div>
+                  {p.isDefending && <div className="mt-2 text-xs text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded-full inline-block border border-blue-500/30">🛡️ Defending</div>}
                 </div>
               );
             })
           ) : (
-            <div className={`combatant player-side ${playerShakes['me'] ? 'animate-shake' : ''}`}>
-              <div className="combatant-icon">{(!myPlayerState.isAlive && CLASS_INFO[myPlayerState.class]?.sprites?.dead) ? <img src={CLASS_INFO[myPlayerState.class].sprites.dead} alt={myPlayerState.name} className="combatant-sprite" /> : ((CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) ? <img src={(isMyTurn && enemyShake) ? (CLASS_INFO[myPlayerState.class]?.sprites?.attack || CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) : (CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite)} alt={myPlayerState.name} className="combatant-sprite" /> : CLASS_INFO[myPlayerState.class]?.icon)}</div>
-              <h3 className="combatant-name">{myPlayerState.name}</h3>
-              <span className="combatant-level">Lv.{myPlayerState.level} {CLASS_INFO[myPlayerState.class]?.name}</span>
-              <div className="combatant-bars">
-                <div className="stat-bar stat-bar-hp"><div className="stat-bar-fill" style={{ width: `${(myPlayerState.hp / myPlayerState.maxHp) * 100}%` }}></div>
-                  <span className="stat-bar-label">HP {myPlayerState.hp}/{myPlayerState.maxHp}</span></div>
-                <div className="stat-bar stat-bar-sp"><div className="stat-bar-fill" style={{ width: `${(myPlayerState.sp / myPlayerState.maxSp) * 100}%` }}></div>
-                  <span className="stat-bar-label">SP {myPlayerState.sp}/{myPlayerState.maxSp}</span></div>
+            <div className={`panel w-full max-w-sm bg-dark-surface/80 border-dark-border text-center ${playerShakes['me'] ? 'animate-shake' : ''}`}>
+              <div className="h-32 md:h-48 mb-4 flex items-center justify-center">
+                {(!myPlayerState.isAlive && CLASS_INFO[myPlayerState.class]?.sprites?.dead) ? <img src={CLASS_INFO[myPlayerState.class].sprites.dead} alt={myPlayerState.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated]" /> : ((CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) ? <img src={(isMyTurn && enemyShake) ? (CLASS_INFO[myPlayerState.class]?.sprites?.attack || CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) : (CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite)} alt={myPlayerState.name} className="max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] scale-150 transform origin-bottom" /> : <span className="text-6xl">{CLASS_INFO[myPlayerState.class]?.icon}</span>)}
               </div>
+              <h3 className="font-title text-2xl font-bold text-gray-200 mb-1">{myPlayerState.name}</h3>
+              <span className="text-sm text-gray-400 block mb-4">Lv.{myPlayerState.level} {CLASS_INFO[myPlayerState.class]?.name}</span>
+              
+              <div className="space-y-3">
+                <div className="h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner">
+                  <div className="absolute top-0 left-0 h-full bg-health transition-all duration-300" style={{ width: `${(myPlayerState.hp / myPlayerState.maxHp) * 100}%` }}></div>
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-md">HP {myPlayerState.hp}/{myPlayerState.maxHp}</span>
+                </div>
+                <div className="h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner">
+                  <div className="absolute top-0 left-0 h-full bg-mana transition-all duration-300" style={{ width: `${(myPlayerState.sp / myPlayerState.maxSp) * 100}%` }}></div>
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-md">SP {myPlayerState.sp}/{myPlayerState.maxSp}</span>
+                </div>
+              </div>
+              
               {myPlayerState.statusEffects?.length > 0 && (
-                <div className="status-effects">
+                <div className="flex flex-wrap justify-center gap-2 mt-4">
                   {myPlayerState.statusEffects.map((e, i) => (
-                    <span key={i} className="status-tag status-debuff">🔥 {e.name || e.type} ({e.duration}t)</span>
+                    <span key={i} className="text-[10px] text-red-400 bg-red-900/20 border border-red-500/30 px-2 py-1 rounded-full uppercase tracking-wider font-bold">🔥 {e.name || e.type} ({e.duration}t)</span>
                   ))}
                 </div>
               )}
@@ -321,35 +329,40 @@ export default function CombatPage() {
           )}
         </div>
 
-        <div className="combat-vs">VS</div>
+        <div className="font-title text-4xl text-gray-600 drop-shadow-md py-4 md:py-0 shrink-0">VS</div>
 
         {/* Enemy Side */}
-        <div className={`combatant enemy-side ${enemyShake ? 'animate-shake' : ''}`}>
-          <div className="combatant-icon enemy-icon">{(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShakes['me'] ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="combatant-sprite" /> : (enemy.isBoss ? '👹' : '💀')}</div>
-          <h3 className="combatant-name">{enemy.name}</h3>
-          <p className="enemy-flavor">{enemy.flavorText}</p>
-          <div className="combatant-bars">
-            <div className="stat-bar stat-bar-hp"><div className="stat-bar-fill" style={{ width: `${enemyHpPct}%` }}></div>
-              <span className="stat-bar-label">HP {enemy.hp}/{enemy.maxHp}</span></div>
+        <div className={`flex-1 w-full max-w-sm panel bg-dark-surface/80 border-dark-border text-center ${enemyShake ? 'animate-shake' : ''}`}>
+          <div className="h-32 md:h-48 mb-4 flex items-center justify-center drop-shadow-[0_0_15px_rgba(196,75,47,0.4)]">
+            {(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShakes['me'] ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 transform origin-bottom" /> : <span className="text-6xl">{enemy.isBoss ? '👹' : '💀'}</span>}
           </div>
+          <h3 className="font-title text-2xl font-bold text-red-400 mb-1">{enemy.name}</h3>
+          <p className="text-xs text-gray-500 font-serif italic mb-4">{enemy.flavorText}</p>
+          
+          <div className="h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner mb-4">
+            <div className="absolute top-0 left-0 h-full bg-red-600 transition-all duration-300" style={{ width: `${enemyHpPct}%` }}></div>
+            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-md">HP {enemy.hp}/{enemy.maxHp}</span>
+          </div>
+
           {enemy.statusEffects?.length > 0 && (
-            <div className="status-effects">
+            <div className="flex flex-wrap justify-center gap-2 mb-4">
               {enemy.statusEffects.map((e, i) => (
-                <span key={i} className="status-tag status-debuff">⚡ {e.type} ({e.duration}t)</span>
+                <span key={i} className="text-[10px] text-blue-400 bg-blue-900/20 border border-blue-500/30 px-2 py-1 rounded-full uppercase tracking-wider font-bold">⚡ {e.type} ({e.duration}t)</span>
               ))}
             </div>
           )}
+          
           {enemy.special && (
-            <div className="enemy-special">
-              <span className="special-name">⚡ {enemy.special.name}</span>
-              <span className="special-desc">{enemy.special.description}</span>
+            <div className="bg-dark-bg/60 p-3 rounded border border-dark-border mt-2">
+              <span className="block text-xs font-bold text-blue-400 uppercase tracking-widest mb-1">⚡ {enemy.special.name}</span>
+              <span className="text-[10px] text-gray-400">{enemy.special.description}</span>
             </div>
           )}
         </div>
 
         {/* Floating damage numbers */}
         {damageNumbers.map(d => (
-          <div key={d.id} className={`damage-number dmg-${d.type}`}
+          <div key={d.id} className={`absolute text-3xl font-title font-bold pointer-events-none z-10 animate-float-up drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${d.type === 'damage' ? 'text-red-500' : d.type === 'crit' ? 'text-gold scale-125' : 'text-green-500'}`}
             style={{ left: `${d.x}%`, top: d.targetId ? '40%' : '50%' }}>
             {d.type === 'heal' ? `+${d.amount}` : `-${d.amount}`}
           </div>
@@ -357,82 +370,116 @@ export default function CombatPage() {
       </div>
 
       {/* Combat Log */}
-      <div className="combat-log panel" ref={logRef}>
-        <h4 className="log-title">📜 Combat Log</h4>
-        <div className="log-entries">
-          {allLogs.slice(-12).map((entry, i) => (
-            <div key={i} className={`log-entry log-${entry.type}`}>
-              {entry.message}
-            </div>
-          ))}
+      <div className="panel bg-dark-surface/40 border-dark-border/50 h-48 overflow-y-auto mb-8 custom-scrollbar" ref={logRef}>
+        <h4 className="text-sm font-bold text-gold uppercase tracking-widest mb-3 border-b border-dark-border/50 pb-2">📜 Combat Log</h4>
+        <div className="space-y-1.5">
+          {allLogs.slice(-20).map((entry, i) => {
+            let colors = "border-gray-700 text-gray-400";
+            if (entry.type === 'player_attack' || entry.type === 'player_skill') colors = "border-blue-500/50 text-blue-300";
+            else if (['enemy_damage', 'enemy_attack', 'enemy_special'].includes(entry.type)) colors = "border-red-500/50 text-red-400";
+            else if (['victory', 'reward', 'loot'].includes(entry.type)) colors = "border-gold/50 text-gold";
+            else if (entry.type === 'death') colors = "border-red-600 text-red-500 font-bold";
+            else if (entry.type === 'level_up') colors = "border-gold text-yellow-300 font-bold";
+            else if (['use_item', 'player_defend'].includes(entry.type)) colors = "border-green-500/50 text-green-400";
+
+            return (
+              <div key={i} className={`text-sm px-3 py-1.5 rounded bg-dark-bg/40 border-l-4 ${colors}`}>
+                {entry.message}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Action Bar */}
       {!result ? (
-        <div className="action-bar">
-          <button className="btn btn-ember btn-lg action-btn" onClick={() => processAction('attack')}
+        <div className="relative flex flex-wrap justify-center gap-4 bg-dark-surface/60 p-6 rounded-xl border border-dark-border">
+          <button className="btn bg-red-900/60 hover:bg-red-800 text-red-100 border border-red-500/30 px-6 py-3 min-w-[140px] text-sm" onClick={() => processAction('attack')}
             disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive} id="btn-attack">
-            ⚔️ Attack
+            <span className="block text-xl mb-1">⚔️</span> Attack
           </button>
           
           {/* Skills */}
           {(CLASS_INFO[myPlayerState?.class]?.skills || []).map((skill) => (
-            <button key={skill.key} className="btn btn-arcane btn-lg action-btn" onClick={() => processAction('skill', skill.key)}
+            <button key={skill.key} className="btn bg-blue-900/60 hover:bg-blue-800 text-blue-100 border border-blue-500/30 px-6 py-3 min-w-[140px] text-sm relative" onClick={() => processAction('skill', skill.key)}
               disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive || myPlayerState?.sp < skill.spCost} id={`btn-${skill.key}`}
               title={`${skill.description} (${skill.spCost} SP)`}>
-              {skill.icon || '✨'} {skill.name}
-              <span className="skill-cost">{skill.spCost} SP</span>
+              <span className="block text-xl mb-1">{skill.icon || '✨'}</span> {skill.name}
+              <span className="absolute top-1 right-2 text-[10px] opacity-70 text-blue-300">{skill.spCost} SP</span>
             </button>
           ))}
           
-          <button className="btn btn-frost btn-lg action-btn" onClick={() => processAction('defend')}
+          <button className="btn bg-gray-700/60 hover:bg-gray-600 text-gray-200 border border-gray-500/30 px-6 py-3 min-w-[140px] text-sm" onClick={() => processAction('defend')}
             disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive} id="btn-defend">
-            🛡️ Defend
+            <span className="block text-xl mb-1">🛡️</span> Defend
           </button>
           
-          <button className="btn btn-nature btn-lg action-btn" onClick={() => setShowItems(!showItems)}
-            disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive || inventory.length === 0} id="btn-items">
-            🧪 Items ({inventory.length})
-          </button>
+          <div className="relative min-w-[140px]">
+            <button className="btn w-full bg-green-900/60 hover:bg-green-800 text-green-100 border border-green-500/30 px-6 py-3 text-sm h-full" onClick={() => setShowItems(!showItems)}
+              disabled={actionLoading || (isCoop && !isMyTurn) || !myPlayerState?.isAlive || inventory.length === 0} id="btn-items">
+              <span className="block text-xl mb-1">🧪</span> Items ({inventory.length})
+            </button>
+            
+            {showItems && (
+              <div className="absolute bottom-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 min-w-[220px] bg-dark-bg border border-dark-border rounded-lg shadow-xl z-20 flex flex-col overflow-hidden">
+                <div className="text-[10px] uppercase font-bold text-gray-500 bg-dark-surface px-3 py-2 border-b border-dark-border text-center">Consumables</div>
+                {inventory.map(item => (
+                  <button key={item.id} className="flex justify-between items-center px-4 py-3 hover:bg-dark-surface border-b border-dark-border/50 last:border-0 text-sm transition-colors text-left" onClick={() => processAction('use_item', null, item.id)}>
+                    <span className="font-bold text-gray-200">{item.name}</span>
+                    <span className="text-gray-500 text-xs bg-dark-surface px-2 py-0.5 rounded">×{item.quantity}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           
           {!isCoop && (
-            <button className="btn btn-ghost btn-lg action-btn" onClick={handleFlee}
+            <button className="btn btn-ghost px-6 py-3 min-w-[140px] text-sm border border-dark-border/50 hover:border-gray-500/50" onClick={handleFlee}
               disabled={actionLoading} id="btn-flee">
-              🏃 Flee
+              <span className="block text-xl mb-1">🏃</span> Flee
             </button>
-          )}
-
-          {showItems && (
-            <div className="items-dropdown panel">
-              {inventory.map(item => (
-                <button key={item.id} className="item-option" onClick={() => processAction('use_item', null, item.id)}>
-                  <span>{item.name}</span>
-                  <span className="item-qty">×{item.quantity}</span>
-                </button>
-              ))}
-            </div>
           )}
         </div>
       ) : (
-        <div className="combat-result panel">
+        <div className="panel bg-dark-surface text-center p-12 shadow-2xl border-2 border-gold/30 animate-slide-up">
           {result.victory ? (
             <>
-              <h3 className="text-gold">🎉 Victory!</h3>
-              <p>{enemy.name} has been defeated!</p>
+              <h3 className="font-title text-5xl text-gold mb-4 drop-shadow-md">🎉 Victory!</h3>
+              <p className="text-gray-300 font-serif italic mb-8">{enemy.name} has been defeated!</p>
+              
               {result.loot?.length > 0 && (
-                <div className="result-loot">
-                  <h4>Loot Drops:</h4>
-                  {result.loot.map((item, i) => (
-                    <div className="result-loot-item" key={i}>
-                      <span className={`badge badge-${item.rarity}`}>{item.rarity}</span> {item.name}
-                    </div>
-                  ))}
+                <div className="bg-dark-bg/60 rounded-xl p-6 border border-dark-border max-w-md mx-auto mb-8 text-left">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 border-b border-dark-border/50 pb-2">Loot Recovered</h4>
+                  <div className="space-y-3">
+                    {result.loot.map((item, i) => {
+                      const getRarityBadge = (r) => {
+                        switch(r) {
+                          case 'uncommon': return 'bg-green-900/40 text-green-400 border border-green-500/50';
+                          case 'rare': return 'bg-blue-900/40 text-blue-400 border border-blue-500/50';
+                          case 'epic': return 'bg-purple-900/40 text-purple-400 border border-purple-500/50';
+                          case 'legendary': return 'bg-gold/40 text-gold border border-gold shadow-glow-gold';
+                          default: return 'bg-gray-800 text-gray-400 border border-gray-600';
+                        }
+                      };
+                      return (
+                        <div className="flex items-center gap-3 bg-dark-surface p-3 rounded border border-dark-border/50" key={i}>
+                          <span className={`text-[10px] uppercase px-2 py-0.5 rounded font-bold ${getRarityBadge(item.rarity)}`}>{item.rarity}</span>
+                          <span className="font-bold text-gray-200 text-sm">{item.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
-              {result.leveledUp && !isCoop && <p className="level-up-msg">🎊 Level Up! Check your stat points!</p>}
+              
+              {result.leveledUp && !isCoop && (
+                <div className="bg-gold/10 border border-gold/50 text-gold px-6 py-4 rounded-xl max-w-md mx-auto mb-8 animate-pulse-slow font-bold">
+                  🎊 Level Up! You gained new stat points!
+                </div>
+              )}
+              
               {(!isCoop || state.players.find(p => p.userId === user.id)?.slotIndex === 0) ? (
-                <button className="btn btn-gold btn-lg btn-full mt-lg" onClick={() => {
+                <button className="btn btn-gold shadow-glow-gold !py-4 !px-12 !text-lg mx-auto" onClick={() => {
                   if (isCoop) {
                     emitNoAck('combat:dismiss_result', { sessionId: coopSessionId || queryParams.get('coop'), lobbyId: state.lobbyId });
                   } else {
@@ -443,22 +490,27 @@ export default function CombatPage() {
                   Return to Dungeon
                 </button>
               ) : (
-                <p className="text-dim mt-sm text-center">Waiting for host to continue...</p>
+                <p className="text-gray-500 font-bold uppercase tracking-widest mt-4">Waiting for host to continue...</p>
               )}
             </>
           ) : (
             <>
-              <h3 className="text-danger">💀 Defeated</h3>
-              <p>The party has fallen to {enemy.name}...</p>
+              <h3 className="font-title text-5xl text-red-500 mb-4 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">💀 Defeated</h3>
+              <p className="text-gray-400 font-serif italic mb-8">The party has fallen to {enemy.name}...</p>
+              
               {result.echoReward && (
-                <div className="echo-reward">
-                  <p className="echo-lore">"{result.echoReward.lore?.text}"</p>
+                <div className="bg-dark-bg/80 border border-purple-500/30 p-6 rounded-xl max-w-lg mx-auto mb-8 shadow-[0_0_20px_rgba(168,85,247,0.1)]">
+                  <p className="text-purple-300 font-serif italic mb-4">"{result.echoReward.lore?.text}"</p>
                   {result.echoReward.perk && (
-                    <p className="echo-perk">🔮 Echo Perk Unlocked: <strong>{result.echoReward.perk.name}</strong> — {result.echoReward.perk.description}</p>
+                    <div className="bg-purple-900/20 p-4 rounded border border-purple-500/20 text-sm text-gray-300">
+                      <span className="block text-purple-400 font-bold mb-1">🔮 Echo Perk Unlocked</span>
+                      <strong>{result.echoReward.perk.name}</strong> — {result.echoReward.perk.description}
+                    </div>
                   )}
                 </div>
               )}
-              <button className="btn btn-gold btn-lg btn-full mt-lg" onClick={() => navigate(`/summary/${charId}`)} id="btn-summary">
+              
+              <button className="btn border border-red-500/50 text-red-400 hover:bg-red-900/30 hover:border-red-400 !py-4 !px-12 !text-lg mx-auto" onClick={() => navigate(`/summary/${charId}`)} id="btn-summary">
                 View Run Summary
               </button>
             </>
