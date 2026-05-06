@@ -1,112 +1,114 @@
-# 🗡️ Realm of Echoes
+# 🗡️ Realm of Echoes: Unbreakable Co-Op RPG
 
-A browser-based, turn-based RPG dungeon crawler where players explore themed dungeon floors, engage in tactical combat, collect loot, and level up. Every session is saved so players can continue their run later.
+**Realm of Echoes** is a high-fidelity, full-stack Roguelike RPG built for **Web Programming SE 3355**. It features a rich dark-fantasy aesthetic, tactical turn-based combat, and a **non-trivial real-time multiplayer co-op system** with "unbreakable" session persistence.
 
-## ⚡ Quick Start
+---
 
-### Prerequisites
-- **Node.js** v18+ installed
+## 🌟 Key Features
 
-### Setup & Run
+### 🏰 "Unbreakable" Multiplayer Co-Op (Non-Trivial Feature)
+*   **Persistent Sessions**: Multi-player runs are immune to accidental page refreshes, navigation errors, or temporary disconnections.
+*   **Intelligent Resume**: A global "Resume Journey" system detects active sessions and restores the exact state of the dungeon or combat.
+*   **Real-time Synchronization**: Powered by **Socket.io**, ensuring all party members see combat logs, health updates, and floor transitions simultaneously.
+*   **Lobby System**: Host private lobbies, manage party slots, and select dedicated multiplayer characters.
 
-1. **Environment Setup**
-   ```bash
-   cd server
-   cp .env.example .env
-   # Open .env and add a unique JWT_SECRET
-   cd ..
-   ```
+### ⚔️ Core RPG Mechanics
+*   **Three Legend Classes**: Choose between **Warrior** (Tank/Physical), **Mage** (Burst/AoE), and **Ranger** (Crit/DEX).
+*   **Dynamic Dungeon Floors**: Procedural room generation with themed floors, scaling enemies, and hidden treasures.
+*   **Tactical Combat**: Turn-based engine with skills, status effects, damage reduction logic, and loot generation.
+*   **Meta-Progression**: Global leaderboard and permanent achievements tied to your account.
 
-2. **Install server dependencies**
-   ```bash
-   cd server
-   npm install
-   ```
+### 🎨 Premium Aesthetics
+*   **Modern UI/UX**: Built with **React + Tailwind CSS** + **Vanilla CSS** for custom glassmorphism and micro-animations.
+*   **Responsive Design**: Fully playable on mobile and desktop layouts.
+*   **Atmospheric Audio**: Dynamic music switching between dungeon exploration and boss battles.
 
-3. **Install client dependencies**
-   ```bash
-   cd ../client
-   npm install
-   ```
+---
 
-4. **Start the backend** (from server/ directory)
-   ```bash
-   cd ../server
-   npm start
-   # Server runs on http://localhost:5000
-   ```
-
-5. **Start the frontend** (from client/ directory, in a new terminal)
-   ```bash
-   cd ../client
-   npm run dev
-   # Frontend runs on http://localhost:5173
-   ```
-
-Then open **http://localhost:5173** in your browser.
-
-## 🎮 How to Play
-
-1. **Register** an account and **log in**
-2. **Create a character** — choose from Warrior, Mage, or Ranger
-3. **Enter the dungeon** — navigate through rooms on each floor
-4. **Engage in combat** — use attacks, skills, defend, or items
-5. **Collect loot** — equip gear, use consumables
-6. **Level up** — allocate stat points (STR/INT/DEX/VIT)
-7. **Save & continue** — your progress is always saved
-8. **Climb the leaderboard** — deepest floor + gold earned
-
-## 🏗️ Tech Stack
+## 🏗️ Technology Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React + Vite |
-| Styling | Vanilla CSS (Dark Fantasy Theme) |
-| Backend | Express.js (Node.js) |
-| Database | SQLite (better-sqlite3) |
-| Auth | JWT + bcryptjs |
+| **Frontend** | React 18 (Vite), Tailwind CSS, Lucide Icons, Framer Motion |
+| **Backend** | Node.js, Express.js |
+| **Real-time** | Socket.io |
+| **Database** | PostgreSQL (Neon / Production Ready) |
+| **Auth** | JWT (JSON Web Tokens) + Bcrypt Encryption |
+
+---
 
 ## 📁 Project Structure
 
-```
+```text
 web_final/
-├── client/          # React frontend
+├── client/                 # React Frontend
 │   ├── src/
-│   │   ├── components/  # Reusable UI components
-│   │   ├── context/     # Auth & Game state
-│   │   ├── data/        # Static game data
-│   │   ├── pages/       # Route pages
-│   │   └── utils/       # API helpers
+│   │   ├── components/     # UI Components (Layout, Combat, Lobby)
+│   │   ├── context/        # Global State (Auth, Game, Socket)
+│   │   ├── hooks/          # Custom Hooks (Socket Emitters, Listeners)
+│   │   ├── pages/          # Bifurcated Routing (Singleplayer vs. Multiplayer)
+│   │   └── utils/          # API & Helper functions
 │   └── ...
-├── server/          # Express backend
-│   ├── db/          # SQLite schema & connection
-│   ├── game/        # Combat engine, loot, floors
-│   ├── middleware/   # JWT auth
-│   └── routes/      # REST API endpoints
-└── PLAN.md
+├── server/                 # Express Backend
+│   ├── db/                 # PostgreSQL Connection & Schema
+│   ├── game/               # Core Combat & Loot Engines
+│   ├── routes/             # RESTful API Endpoints
+│   ├── socket/             # Real-time Handlers (Lobby, Combat, Sync)
+│   ├── scripts/            # Database Migrations
+│   └── ...
+└── web.txt                 # Project Requirements Reference
 ```
 
-## 🔌 API Endpoints
+---
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/auth/register` | POST | Create account |
-| `/api/auth/login` | POST | Login (returns JWT) |
-| `/api/auth/profile` | GET | Get user profile |
-| `/api/characters` | GET/POST | List / Create characters |
-| `/api/characters/:id` | GET/PUT/DELETE | Read / Update / Delete character |
-| `/api/dungeon/enter` | POST | Enter dungeon floor |
-| `/api/dungeon/move` | POST | Move to next room |
-| `/api/combat/start` | POST | Start combat encounter |
-| `/api/combat/action` | POST | Submit combat action |
-| `/api/inventory/:charId` | GET | Get inventory (with filters) |
-| `/api/inventory/equip` | POST | Equip item |
-| `/api/leaderboard` | GET | Global leaderboard |
+## 🔌 Core API Endpoints
 
-## ⚔️ Classes
+### Authentication
+*   `POST /api/auth/register` - Create a new account.
+*   `POST /api/auth/login` - Authenticate and receive a JWT.
 
-| Class | HP | SP | Primary Stat | Skill 1 | Skill 2 | Passive |
-|-------|-----|-----|-------------|---------|---------|---------|
-| Warrior | 120 | 40 | STR | Cleave | Shield Bash | Iron Skin (+10% DEF) |
-| Mage | 80 | 80 | INT | Fireball | Frost Nova | Arcane Focus (+15% spell dmg) |
-| Ranger | 100 | 60 | DEX | Power Shot | Smoke Bomb | Eagle Eye (+10% crit) |
+### Gameplay (CRUD)
+*   `GET /api/characters` - Fetch all characters for the current mode.
+*   `POST /api/characters` - Create a new hero.
+*   `DELETE /api/characters/:id` - Permanently retire a hero.
+*   `GET /api/inventory/:id` - Fetch item management data.
+
+### Multiplayer (Socket.io)
+*   `lobby:create` / `lobby:join` - Manage party coordination.
+*   `session:sync` - Re-hydrate game state after disconnect/refresh.
+*   `combat:action` - Real-time turn submission.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+*   **Node.js** (v18+)
+*   **PostgreSQL** instance (or a free **Neon.tech** account)
+
+### Installation
+
+1.  **Clone & Install Dependencies**
+    ```bash
+    git clone https://github.com/realmofechoes-yu/realmofechoes.git
+    cd realmofechoes
+    npm run install-all  # Installs both client and server deps
+    ```
+
+2.  **Run Development Environment**
+
+    Open two separate terminals:
+
+    **Terminal 1: Backend**
+    ```bash
+    cd server
+    npm run dev
+    # Backend runs on: http://localhost:5000
+    ```
+
+    **Terminal 2: Frontend**
+    ```bash
+    cd client
+    npm run dev
+    # Frontend runs on: http://localhost:5173
+    ```
