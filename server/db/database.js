@@ -19,7 +19,8 @@ function getPool() {
       ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
       max: 10,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000
+      connectionTimeoutMillis: 10000,
+      client_encoding: 'UTF8'
     });
     pool.on('error', (err) => {
       console.error('Unexpected pool error:', err);
@@ -34,6 +35,8 @@ async function initSchema() {
   const schema = fs.readFileSync(schemaPath, 'utf-8');
   try {
     await p.query(schema);
+    // Ensure revival_count exists for characters
+    await p.query('ALTER TABLE characters ADD COLUMN IF NOT EXISTS revival_count INTEGER DEFAULT 0');
     console.log('✅ Database schema initialized');
   } catch (err) {
     // Tables may already exist, that's fine

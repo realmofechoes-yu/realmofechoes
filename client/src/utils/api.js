@@ -38,6 +38,7 @@ export const api = {
   flee: (characterId) => request('/combat/flee', { method: 'POST', body: JSON.stringify({ characterId }) }),
   getActiveCombat: (characterId) => request(`/combat/active/${characterId}`),
   getCombatLogs: (charId) => request(`/combat/${charId}/log`),
+  revive: (characterId) => request('/combat/revive', { method: 'POST', body: JSON.stringify({ characterId }) }),
 
   // Inventory
   getInventory: (charId, params = {}) => {

@@ -355,8 +355,18 @@ async function checkAchievementsAsync(userId, eventData) {
       case 'gold_1000': earned = eventData.totalGold >= 1000; break;
     }
     if (earned) {
-      await run('INSERT INTO achievements (user_id,achievement_key,achievement_name,description,icon) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (user_id,achievement_key) DO NOTHING',
-        [userId, ach.key, ach.name, ach.description, ach.icon]);
+      try {
+        await run('INSERT INTO achievements (user_id,achievement_key,achievement_name,description,icon) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (user_id,achievement_key) DO NOTHING',
+          [userId, ach.key, ach.name, ach.description, ach.icon]);
+      } catch (e) {
+        if (e.message.includes('encoding')) {
+          // Fallback for non-UTF8 databases
+          await run('INSERT INTO achievements (user_id,achievement_key,achievement_name,description,icon) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (user_id,achievement_key) DO NOTHING',
+            [userId, ach.key, ach.name, ach.description, '*']);
+        } else {
+          throw e;
+        }
+      }
       unlocked.push(ach);
     }
   }
@@ -381,5 +391,37 @@ function sanitizeCombatState(state) {
     }
   };
 }
+
+// POST /api/combat/revive
+router.post('/revive', authMiddleware, async (req, res) => {
+  try {
+    const { characterId } = req.body;
+    const char = await getOne('SELECT * FROM characters WHERE id = $1 AND user_id = $2', [characterId, req.user.id]);
+    if (!char) return res.status(404).json({ error: 'Character not found.' });
+    if (char.is_alive) return res.status(400).json({ error: 'Character is already alive.' });
+
+    const user = await getOne('SELECT total_gold FROM users WHERE id = $1', [req.user.id]);
+    const revivalCount = char.revival_count || 0;
+    const cost = 50 * Math.pow(2, revivalCount);
+
+    if (user.total_gold < cost) {
+      return res.status(400).json({ error: `Not enough gold. Need ${cost}, have ${user.total_gold}.` });
+    }
+
+    // Deduct from user total gold and revive character
+    await run('UPDATE users SET total_gold = total_gold - $1 WHERE id = $2', [cost, req.user.id]);
+    await run(
+      'UPDATE characters SET is_alive = TRUE, run_status = $1, hp = max_hp, sp = max_sp, revival_count = $2, updated_at = NOW() WHERE id = $3',
+      ['active', revivalCount + 1, characterId]
+    );
+
+    const updatedChar = await getOne('SELECT * FROM characters WHERE id = $1', [characterId]);
+    const updatedUser = await getOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    res.json({ success: true, message: 'Character revived!', character: updatedChar, user: updatedUser, cost });
+  } catch (err) {
+    console.error('Revival error:', err);
+    res.status(500).json({ error: 'Server error during revival.' });
+  }
+});
 
 module.exports = router;

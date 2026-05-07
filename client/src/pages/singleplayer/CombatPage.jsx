@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../../context/GameContext';
+import { useAuth } from '../../context/AuthContext';
 import { useAudio } from '../../context/AudioContext';
 import api from '../../utils/api';
 import { CLASS_INFO } from '../../data/gameData';
@@ -13,6 +14,7 @@ export default function CombatPage() {
     combatState, setCombatState, 
     currentCharacter, setCurrentCharacter
   } = useGame();
+  const { user, refreshProfile } = useAuth();
 
   const [turnLog, setTurnLog] = useState([]);
   const [allLogs, setAllLogs] = useState([]);
@@ -142,15 +144,34 @@ export default function CombatPage() {
     finally { setActionLoading(false); }
   };
 
+  const handleRevive = async () => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      const data = await api.revive(parseInt(charId));
+      setCurrentCharacter(data.character);
+      await refreshProfile();
+      setResult(null);
+      setCombatState(null);
+      navigate(`/singleplayer/dungeon/${charId}`);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (!state) return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Loading Combat...</p></div>;
 
   const enemy = state.enemy;
   const enemyHpPct = (enemy.hp / enemy.maxHp) * 100;
   
   const myPlayerState = { ...state.player, isAlive: state.player.hp > 0 };
+  const spriteScale = myPlayerState.class === 'warrior' ? 'scale-100' : 'scale-[2.5]';
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
+    <div className="max-w-6xl mx-auto p-4 md:p-8 animate-fade-in bg-cover bg-center rounded-2xl border border-dark-border shadow-2xl relative overflow-hidden"
+         style={{ backgroundImage: 'linear-gradient(rgba(5, 5, 10, 0.2), rgba(5, 5, 10, 0.2)), url("/backgrounds/combat_bg.png")' }}>
       <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
         <h2 className="text-3xl font-title font-bold text-gold drop-shadow-md">⚔️ Combat — Round {state.turn}</h2>
         {enemy.isBoss && <span className="font-title font-bold text-sm text-red-500 bg-red-900/20 px-3 py-1 rounded-full border border-red-500/40 animate-pulse">👹 BOSS</span>}
@@ -161,7 +182,7 @@ export default function CombatPage() {
         <div className="flex-1 w-full flex flex-wrap gap-4 justify-center">
           <div className={`panel w-full max-w-sm bg-dark-surface/80 border-dark-border text-center ${playerShake ? 'animate-shake' : ''} border-gold shadow-glow-gold ${!myPlayerState.isAlive ? 'opacity-50 grayscale border-red-900' : ''}`}>
             <div className="h-32 md:h-48 mb-4 flex items-center justify-center">
-              {(!myPlayerState.isAlive && CLASS_INFO[myPlayerState.class]?.sprites?.dead) ? <img src={CLASS_INFO[myPlayerState.class].sprites.dead} alt={myPlayerState.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : ((CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) ? <img src={(enemyShake) ? (CLASS_INFO[myPlayerState.class]?.sprites?.attack || CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) : (CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite)} alt={myPlayerState.name} className="max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-6xl">{CLASS_INFO[myPlayerState.class]?.icon}</span>)}
+              {(!myPlayerState.isAlive && CLASS_INFO[myPlayerState.class]?.sprites?.dead) ? <img src={CLASS_INFO[myPlayerState.class].sprites.dead} alt={myPlayerState.name} className={`max-w-full max-h-full object-contain [image-rendering:pixelated] ${spriteScale}`} /> : ((CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) ? <img src={(enemyShake) ? (CLASS_INFO[myPlayerState.class]?.sprites?.attack || CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite) : (CLASS_INFO[myPlayerState.class]?.sprites?.idle || CLASS_INFO[myPlayerState.class]?.sprite)} alt={myPlayerState.name} className={`max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] ${spriteScale}`} /> : <span className="text-6xl">{CLASS_INFO[myPlayerState.class]?.icon}</span>)}
             </div>
             <h3 className="font-title text-2xl font-bold text-gray-200 mb-1">{myPlayerState.name}</h3>
             <span className="text-sm text-gray-400 block mb-4">Lv.{myPlayerState.level} {CLASS_INFO[myPlayerState.class]?.name}</span>
@@ -192,7 +213,7 @@ export default function CombatPage() {
         {/* Enemy Side */}
         <div className={`flex-1 w-full max-w-sm panel bg-dark-surface/80 border-dark-border text-center ${enemyShake ? 'animate-shake' : ''}`}>
           <div className="h-32 md:h-48 mb-4 flex items-center justify-center drop-shadow-[0_0_15px_rgba(196,75,47,0.4)]">
-            {(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShake ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-6xl">{enemy.isBoss ? '👹' : '💀'}</span>}
+            {(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShake ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-100" /> : <span className="text-6xl">{enemy.isBoss ? '👹' : '💀'}</span>}
           </div>
           <h3 className="font-title text-2xl font-bold text-red-400 mb-1">{enemy.name}</h3>
           <p className="text-xs text-gray-500 font-serif italic mb-4">{enemy.flavorText}</p>
@@ -358,9 +379,16 @@ export default function CombatPage() {
                 </div>
               )}
               
-              <button className="btn border border-red-500/50 text-red-400 hover:bg-red-900/30 hover:border-red-400 !py-4 !px-12 !text-lg mx-auto" onClick={() => navigate(`/singleplayer/summary/${charId}`)} id="btn-summary">
-                View Run Summary
-              </button>
+              <div className="flex flex-col gap-4 max-w-sm mx-auto">
+                <button className="btn btn-gold shadow-glow-gold !py-4 !text-lg flex items-center justify-center gap-2" 
+                  onClick={handleRevive} disabled={actionLoading}>
+                  <span className="text-2xl">✨</span> Revive (Cost: {50 * Math.pow(2, currentCharacter?.revival_count || 0)} Gold | Bal: {user?.total_gold || 0})
+                </button>
+                <button className="btn border border-red-500/50 text-red-400 hover:bg-red-900/30 hover:border-red-400 !py-4 !text-lg" 
+                  onClick={() => navigate(`/singleplayer/summary/${charId}`)} id="btn-summary">
+                  View Run Summary
+                </button>
+              </div>
             </>
           )}
         </div>

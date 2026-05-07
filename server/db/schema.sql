@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS characters (
   damage_dealt_total INTEGER DEFAULT 0,
   damage_received_total INTEGER DEFAULT 0,
   mode VARCHAR(15) DEFAULT 'singleplayer' CHECK(mode IN ('singleplayer', 'multiplayer')),
+  revival_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

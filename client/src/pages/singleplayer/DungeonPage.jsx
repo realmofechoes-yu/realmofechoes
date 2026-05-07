@@ -90,6 +90,22 @@ export default function DungeonPage() {
 
   const isLastRoom = floor && currentRoom >= floor.rooms.length - 1;
 
+  if (currentCharacter && !currentCharacter.is_alive) {
+    return (
+      <div className="max-w-2xl mx-auto p-12 mt-20 bg-dark-surface/80 backdrop-blur-xl border border-red-500/30 rounded-2xl text-center shadow-[0_0_50px_rgba(239,68,68,0.15)] animate-fade-in">
+        <div className="w-24 h-24 bg-red-900/20 border border-red-500/50 rounded-full flex items-center justify-center mx-auto mb-8 text-4xl shadow-glow-red">💀</div>
+        <h2 className="text-4xl text-red-500 font-title mb-4 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">The Echoes Claim You</h2>
+        <p className="text-gray-400 font-serif italic mb-10 text-lg">Your physical form has been destroyed, but your spirit lingers in the realm. Will you pay the price to return?</p>
+        <button 
+          className="btn btn-gold shadow-glow-gold !py-4 !px-12 !text-xl" 
+          onClick={() => navigate(`/singleplayer/combat/${charId}`)}
+        >
+          Return to Death Screen
+        </button>
+      </div>
+    );
+  }
+
   if (loading) {
     return <div className="max-w-5xl mx-auto p-8 animate-fade-in text-center flex flex-col items-center justify-center min-h-[60vh]"><div className="w-12 h-12 border-4 border-dark-border border-t-gold rounded-full animate-spin mb-4"></div><p className="text-gray-400 font-serif italic">Descending into the dungeon...</p></div>;
   }
@@ -100,7 +116,21 @@ export default function DungeonPage() {
   const spPct = char ? (char.sp / char.max_sp) * 100 : 0;
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 animate-fade-in">
+    <div className="relative -m-4 md:-m-8 p-4 md:p-8 min-h-[calc(100vh-4rem)]">
+      {/* Dungeon Background */}
+      <div 
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
+        style={{ 
+          backgroundImage: `url('/image2.png')`,
+          filter: 'brightness(0.5) saturate(1.0)'
+        }}
+      />
+      
+      {/* Atmospheric Overlays */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-dark-bg/20 via-transparent to-dark-bg/70 pointer-events-none" />
+      <div className="fixed inset-0 z-0 backdrop-blur-[2px] pointer-events-none" />
+
+      <div className="relative z-10 max-w-7xl mx-auto animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-title font-bold text-gold drop-shadow-md flex items-center gap-3">
@@ -272,6 +302,7 @@ export default function DungeonPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

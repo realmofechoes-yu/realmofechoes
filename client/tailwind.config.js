@@ -57,11 +57,44 @@ export default {
       animation: {
         'float': 'float 6s ease-in-out infinite',
         'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'shake': 'shake 0.2s ease-in-out 2',
+        'lunge-right': 'lunge-right 0.4s ease-in-out',
+        'lunge-left': 'lunge-left 0.4s ease-in-out',
+        'flash': 'flash-red 0.5s ease-in-out',
+        'projectile-to-enemy': 'projectile-to-enemy 0.5s ease-out forwards',
+        'projectile-to-player': 'projectile-to-player 0.5s ease-out forwards',
       },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '25%': { transform: 'translateX(-5px) rotate(-1deg)' },
+          '75%': { transform: 'translateX(5px) rotate(1deg)' },
+        },
+        'lunge-right': {
+          '0%': { transform: 'translateX(0)' },
+          '30%': { transform: 'translateX(60px) scale(1.1)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        'lunge-left': {
+          '0%': { transform: 'translateX(0)' },
+          '30%': { transform: 'translateX(-60px) scale(1.1)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        'flash-red': {
+          '0%, 100%': { filter: 'brightness(1)' },
+          '50%': { filter: 'brightness(1.5) sepia(1) hue-rotate(-50deg) saturate(5)' },
+        },
+        'projectile-to-enemy': {
+          '0%': { transform: 'translate(-200px, 0) scale(1)', opacity: '1' },
+          '100%': { transform: 'translate(200px, 0) scale(1.5)', opacity: '0' },
+        },
+        'projectile-to-player': {
+          '0%': { transform: 'translate(200px, 0) scale(1)', opacity: '1' },
+          '100%': { transform: 'translate(-200px, 0) scale(1.5)', opacity: '0' },
         }
       }
     },

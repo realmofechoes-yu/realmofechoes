@@ -34,8 +34,11 @@ export default function CombatPage() {
   const [showItems, setShowItems] = useState(false);
   const [currentTurnUserId, setCurrentTurnUserId] = useState(null);
   const { playTrack } = useAudio();
+  const [activeAttacker, setActiveAttacker] = useState(null); // { id, type }
+  const [projectiles, setProjectiles] = useState([]);
   const logRef = useRef(null);
   const dmgIdRef = useRef(0);
+  const projIdRef = useRef(0);
 
   useEffect(() => {
     const syncCombat = async () => {
@@ -109,15 +112,38 @@ export default function CombatPage() {
 
     for (const evt of data.turnLog) {
       if (evt.type === 'player_attack' || evt.type === 'player_skill') {
-        setEnemyShake(true);
-        showDamage(evt.amount, evt.isCrit ? 'crit' : 'damage', 'enemy');
-        setTimeout(() => setEnemyShake(false), 500);
+        const p = data.combatState.players.find(p => p.userId === data.actor.userId);
+        const isProjectile = p?.class === 'mage' || p?.class === 'ranger';
+        
+        if (isProjectile) {
+          const pid = projIdRef.current++;
+          setProjectiles(prev => [...prev, { id: pid, type: p.class === 'mage' ? 'fire' : 'arrow', from: 'player', charId: p.userId }]);
+          setTimeout(() => setProjectiles(prev => prev.filter(pr => pr.id !== pid)), 600);
+          setTimeout(() => {
+            setEnemyShake(true);
+            showDamage(evt.amount, evt.isCrit ? 'crit' : 'damage', 'enemy');
+            setTimeout(() => setEnemyShake(false), 500);
+          }, 400);
+        } else {
+          setActiveAttacker({ id: data.actor.userId, type: 'player' });
+          setTimeout(() => setActiveAttacker(null), 500);
+          setTimeout(() => {
+            setEnemyShake(true);
+            showDamage(evt.amount, evt.isCrit ? 'crit' : 'damage', 'enemy');
+            setTimeout(() => setEnemyShake(false), 500);
+          }, 200);
+        }
       }
       if (evt.type === 'enemy_damage' || evt.type === 'enemy_attack') {
         const targetPlayer = data.combatState.players.find(p => p.username === evt.target);
         if (targetPlayer) {
-          shakePlayer(targetPlayer.userId);
-          showDamage(evt.amount, 'damage', 'player', targetPlayer.userId);
+          setActiveAttacker({ id: 'enemy', type: 'enemy' });
+          setTimeout(() => setActiveAttacker(null), 500);
+          
+          setTimeout(() => {
+            shakePlayer(targetPlayer.userId);
+            showDamage(evt.amount, 'damage', 'player', targetPlayer.userId);
+          }, 200);
         }
       }
       if (evt.type === 'use_item' || evt.type === 'enemy_heal') {
@@ -203,7 +229,8 @@ export default function CombatPage() {
   const activeUsername = state.players.find(p => p.userId === activeTurnUserId)?.username;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 animate-fade-in">
+    <div className="max-w-6xl mx-auto p-4 md:p-8 animate-fade-in bg-cover bg-center rounded-2xl border border-dark-border shadow-2xl relative overflow-hidden"
+         style={{ backgroundImage: 'linear-gradient(rgba(5, 5, 10, 0.2), rgba(5, 5, 10, 0.2)), url("/backgrounds/combat_bg.png")' }}>
       <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
         <h2 className="text-3xl font-title font-bold text-gold drop-shadow-md">⚔️ Combat — Round {state.round || state.turn}</h2>
         {enemy.isBoss && <span className="font-title font-bold text-sm text-red-500 bg-red-900/20 px-3 py-1 rounded-full border border-red-500/40 animate-pulse">👹 BOSS</span>}
@@ -227,14 +254,14 @@ export default function CombatPage() {
             const ci = CLASS_INFO[p.class];
             const hpPct = (p.hp / p.maxHp) * 100;
             const spPct = (p.sp / p.maxSp) * 100;
-            const isTurn = p.userId === activeTurnUserId;
-            const isDead = !p.isAlive;
+            const isAttacking = activeAttacker?.id === p.userId;
             const shake = playerShakes[p.userId];
+            const spriteScale = p.class === 'warrior' ? 'scale-100' : 'scale-[2.5]';
 
             return (
-              <div key={p.userId} className={`panel bg-dark-surface/80 min-w-[140px] flex-1 text-center transition-all duration-300 ${shake ? 'animate-shake' : ''} ${isTurn ? 'border-gold shadow-glow-gold' : 'border-dark-border'} ${isDead ? 'opacity-50 grayscale border-red-900' : ''}`}>
+              <div key={p.userId} className={`panel bg-dark-surface/80 min-w-[140px] flex-1 text-center transition-all duration-300 ${shake ? 'animate-shake' : ''} ${isAttacking ? 'animate-lunge-right' : ''} ${isTurn ? 'border-gold shadow-glow-gold' : 'border-dark-border'} ${isDead ? 'opacity-50 grayscale border-red-900' : ''}`}>
                 <div className="h-24 md:h-32 mb-4 flex items-center justify-center">
-                  {isDead ? (ci?.sprites?.dead ? <img src={ci.sprites.dead} alt={p.username} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-4xl">💀</span>) : ((ci?.sprites?.idle || ci?.sprite) ? <img src={(isTurn && enemyShake) ? (ci?.sprites?.attack || ci?.sprites?.idle || ci?.sprite) : (ci?.sprites?.idle || ci?.sprite)} alt={p.username} className="max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-4xl">{ci?.icon}</span>)}
+                  {isDead ? (ci?.sprites?.dead ? <img src={ci.sprites.dead} alt={p.username} className={`max-w-full max-h-full object-contain [image-rendering:pixelated] ${spriteScale}`} /> : <span className="text-4xl">💀</span>) : ((ci?.sprites?.idle || ci?.sprite) ? <img src={(isTurn && enemyShake) ? (ci?.sprites?.attack || ci?.sprites?.idle || ci?.sprite) : (ci?.sprites?.idle || ci?.sprite)} alt={p.username} className={`max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] ${spriteScale}`} /> : <span className="text-4xl">{ci?.icon}</span>)}
                 </div>
                 <h3 className="font-title text-lg font-bold text-gray-200">{p.username}</h3>
                 <div className="space-y-2 mt-2">
@@ -251,12 +278,23 @@ export default function CombatPage() {
           })}
         </div>
 
-        <div className="font-title text-4xl text-gray-600 drop-shadow-md py-4 md:py-0 shrink-0">VS</div>
+        <div className="font-title text-4xl text-gray-600 drop-shadow-md py-4 md:py-0 shrink-0 relative">
+          VS
+          {projectiles.map(p => (
+            <div 
+              key={p.id} 
+              className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 pointer-events-none z-50 transition-all duration-500 ease-out
+                ${p.from === 'player' ? 'animate-projectile-to-enemy' : 'animate-projectile-to-player'}`}
+            >
+              {p.type === 'fire' ? '🔥' : '🏹'}
+            </div>
+          ))}
+        </div>
 
         {/* Enemy Side */}
-        <div className={`flex-1 w-full max-w-sm panel bg-dark-surface/80 border-dark-border text-center ${enemyShake ? 'animate-shake' : ''}`}>
+        <div className={`flex-1 w-full max-w-sm panel bg-dark-surface/80 border-dark-border text-center ${enemyShake ? 'animate-shake animate-flash' : ''} ${activeAttacker?.id === 'enemy' ? 'animate-lunge-left' : ''}`}>
           <div className="h-32 md:h-48 mb-4 flex items-center justify-center drop-shadow-[0_0_15px_rgba(196,75,47,0.4)]">
-            {(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShakes[user.id] ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-150 md:scale-[2]" /> : <span className="text-6xl">{enemy.isBoss ? '👹' : '💀'}</span>}
+            {(enemy.sprites?.idle || enemy.sprite) ? <img src={(enemy.hp <= 0 && enemy.sprites?.dead) ? enemy.sprites.dead : (playerShakes[user.id] ? (enemy.sprites?.attack || enemy.sprites?.idle || enemy.sprite) : (enemy.sprites?.idle || enemy.sprite))} alt={enemy.name} className="max-w-full max-h-full object-contain [image-rendering:pixelated] scale-100" /> : <span className="text-6xl">{enemy.isBoss ? '👹' : '💀'}</span>}
           </div>
           <h3 className="font-title text-2xl font-bold text-red-400 mb-1">{enemy.name}</h3>
           <p className="text-xs text-gray-500 font-serif italic mb-4">{enemy.flavorText}</p>
