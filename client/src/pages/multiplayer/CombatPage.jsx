@@ -257,22 +257,28 @@ export default function CombatPage() {
             const isAttacking = activeAttacker?.id === p.userId;
             const shake = playerShakes[p.userId];
             const spriteScale = p.class === 'warrior' ? 'scale-100' : 'scale-[2.5]';
+            const isTurn = activeTurnUserId === p.userId;
+            const isDead = p.hp <= 0;
 
             return (
-              <div key={p.userId} className={`panel bg-dark-surface/80 min-w-[140px] flex-1 text-center transition-all duration-300 ${shake ? 'animate-shake' : ''} ${isAttacking ? 'animate-lunge-right' : ''} ${isTurn ? 'border-gold shadow-glow-gold' : 'border-dark-border'} ${isDead ? 'opacity-50 grayscale border-red-900' : ''}`}>
-                <div className="h-24 md:h-32 mb-4 flex items-center justify-center">
+              <div key={p.userId} className={`panel bg-dark-surface/80 max-w-sm flex-1 text-center transition-all duration-300 ${shake ? 'animate-shake' : ''} ${isAttacking ? 'animate-lunge-right' : ''} ${isTurn ? 'border-gold shadow-glow-gold' : 'border-dark-border'} ${isDead ? 'opacity-50 grayscale border-red-900' : ''}`}>
+                <div className="h-28 md:h-40 mb-4 flex items-center justify-center">
                   {isDead ? (ci?.sprites?.dead ? <img src={ci.sprites.dead} alt={p.username} className={`max-w-full max-h-full object-contain [image-rendering:pixelated] ${spriteScale}`} /> : <span className="text-4xl">💀</span>) : ((ci?.sprites?.idle || ci?.sprite) ? <img src={(isTurn && enemyShake) ? (ci?.sprites?.attack || ci?.sprites?.idle || ci?.sprite) : (ci?.sprites?.idle || ci?.sprite)} alt={p.username} className={`max-w-full max-h-full object-contain drop-shadow-lg [image-rendering:pixelated] ${spriteScale}`} /> : <span className="text-4xl">{ci?.icon}</span>)}
                 </div>
-                <h3 className="font-title text-lg font-bold text-gray-200">{p.username}</h3>
-                <div className="space-y-2 mt-2">
-                  <div className="h-2 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative">
-                    <div className="absolute top-0 left-0 h-full bg-health" style={{ width: `${hpPct}%` }}></div>
+                <h3 className="font-title text-2xl font-bold text-gray-200 mb-1">{p.username}</h3>
+                <span className="text-xs text-gray-400 block mb-4 uppercase tracking-widest font-bold">Lv.{p.level} {ci?.name}</span>
+                
+                <div className="space-y-3">
+                  <div className="h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner">
+                    <div className="absolute top-0 left-0 h-full bg-health transition-all duration-300" style={{ width: `${hpPct}%` }}></div>
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-md">HP {p.hp}/{p.maxHp}</span>
                   </div>
-                  <div className="h-2 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative">
-                    <div className="absolute top-0 left-0 h-full bg-mana" style={{ width: `${spPct}%` }}></div>
+                  <div className="h-4 bg-dark-bg rounded-full overflow-hidden border border-dark-border relative shadow-inner">
+                    <div className="absolute top-0 left-0 h-full bg-mana transition-all duration-300" style={{ width: `${spPct}%` }}></div>
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-md">SP {p.sp}/{p.maxSp}</span>
                   </div>
                 </div>
-                {p.isDefending && <div className="mt-2 text-xs text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded-full inline-block border border-blue-500/30">🛡️ Defending</div>}
+                {p.isDefending && <div className="mt-4 text-xs text-blue-400 bg-blue-900/20 px-3 py-1 rounded-full inline-block border border-blue-500/30 font-bold uppercase tracking-widest">🛡️ Defending</div>}
               </div>
             );
           })}
